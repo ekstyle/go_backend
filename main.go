@@ -10,7 +10,7 @@ import (
 
 
 func RootHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(lib.Exception{Message:"Empty"})
+	json.NewEncoder(w).Encode(lib.Exception{Message:"Empty response"})
 }
 
 func main() {
