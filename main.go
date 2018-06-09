@@ -16,5 +16,5 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", RootHandler)
-	log.Fatal(http.ListenAndServe("localhost:8080", r))
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
