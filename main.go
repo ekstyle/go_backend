@@ -4,7 +4,7 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"encoding/json"
-	"./lib"
+	"github.com/go_backend/lib"
 
 	"log"
 )
