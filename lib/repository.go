@@ -55,6 +55,7 @@ func (r *Repository) AddUser(user User) (*Exception) {
 		return &Exception {USER_EXIST_EXEPTION,nil}
 	}
 	user.Password = hashPassword(user.Password)
+	user.Active = true
 	errInsert := db.C(USER_COLLECTION).Insert(user)
 	if errInsert != nil {
 		return &Exception {CANT_INSERT_EXEPTION,errInsert}

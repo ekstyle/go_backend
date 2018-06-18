@@ -18,7 +18,7 @@ var routes = Routes {
 	Route {
 		"Index",
 		"GET",
-		"/",controller.Index,
+		"/",controller.IndexHandler,
 	},
 	Route {
 		"Index",
@@ -28,7 +28,12 @@ var routes = Routes {
 	Route {
 		"Index",
 		"POST",
-		"/",controller.Index,
+		"/add_user",controller.AddUserHandler,
+	},
+	Route {
+		"Index",
+		"POST",
+		"/",controller.IndexHandler,
 	},
 }
 

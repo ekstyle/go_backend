@@ -34,8 +34,8 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	w.WriteHeader(code)
 	w.Write(response)
 }
-func (c *Controller) Index(w http.ResponseWriter, r *http.Request) {
-	respondWithJson(w, http.StatusOK, Exception{Message:"Empty"})
+func (c *Controller) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	respondWithJson(w, http.StatusOK, Exception{Message:"Empty response!"})
 }
 func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -77,6 +77,26 @@ func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	//UnAuthorized
 	respondWithJson(w, http.StatusUnauthorized,Exception {UNAUTHORIZED, nil})
 }
+
+func (c *Controller) AddUserHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err})
+		return
+	}
+	var user User
+	//Check login information
+	errDecode := decoder.Decode(&user, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode})
+		return
+	}
+	ex := repository.AddUser(user)
+	if ex != nil {
+		respondWithJson(w, http.StatusBadRequest, ex)
+	}
+}
+
 
 //Middleware
 func AuthenticationMiddleware(next http.HandlerFunc) http.HandlerFunc {

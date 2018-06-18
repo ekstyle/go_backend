@@ -1,9 +1,9 @@
 package lib
 
 type User struct {
-	Login string `bson:"login"`
-	Password string `bson:"password"`
-	Active bool `bson:"active"`
+	Login string `bson:"login" schema:"login"`
+	Password string `bson:"password" schema:"password"`
+	Active bool `bson:"active" schema:"-"`
 }
 type UserLogin struct {
 	Login string `schema:"login"`
