@@ -1,20 +1,21 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
-	"encoding/json"
 	"github.com/ekstyle/go_backend/lib"
 	"log"
+	"os"
 )
-
-
-func RootHandler(w http.ResponseWriter, r *http.Request) {
-	json.NewEncoder(w).Encode(lib.Exception{Message:"Empty response"})
+func GetPort() string {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		log.Println("PORT environment not set. Use", port)
+	}
+	return ":" + port
 }
 
 func main() {
-	r := mux.NewRouter()
-	r.HandleFunc("/", RootHandler)
-	log.Fatal(http.ListenAndServe(":8080", r))
+	r := lib.NewRouter()
+	log.Fatal(http.ListenAndServe(GetPort(), r))
 }
