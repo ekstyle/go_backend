@@ -1,11 +1,13 @@
 package lib
 
 type User struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Login string `bson:"login"`
+	Password string `bson:"password"`
+	Active bool `bson:"active"`
 }
-type Exception struct {
-	Message string `json:"message"`
+type UserLogin struct {
+	Login string `schema:"login"`
+	Password string `schema:"password"`
 }
 type JwtToken struct {
 	Token string `json:"token"`

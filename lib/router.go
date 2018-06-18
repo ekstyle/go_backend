@@ -22,18 +22,13 @@ var routes = Routes {
 	},
 	Route {
 		"Index",
-		"GET",
-		"/term",AuthenticationMiddleware(controller.Index),
+		"POST",
+		"/login",controller.LoginHandler,
 	},
 	Route {
 		"Index",
 		"POST",
 		"/",controller.Index,
-	},
-	Route {
-		"Token",
-		"POST",
-		"/get",controller.GetToken,
 	},
 }
 

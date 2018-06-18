@@ -9,11 +9,16 @@ import (
 	"os"
 	"log"
 	"github.com/gorilla/context"
+    "github.com/gorilla/schema"
 	"time"
 )
 //Base controller
 type Controller struct {
-
+}
+var repository = Repository{}
+var decoder = schema.NewDecoder()
+func init() {
+	repository.Connect()
 }
 func GetSecretKey() string {
 	key := os.Getenv("SECRET_KEY")
@@ -32,6 +37,47 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 func (c *Controller) Index(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusOK, Exception{Message:"Empty"})
 }
+func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err})
+		return
+	}
+	var userLogin UserLogin
+	//Check login information
+	errDecode := decoder.Decode(&userLogin, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode})
+		return
+	}
+	isValid, errCheck := repository.CheckUser(userLogin)
+	//DB Problem
+	if errCheck != nil {
+		respondWithJson(w, http.StatusInternalServerError, errCheck)
+	}
+	//Login information correct
+	if isValid == true {
+		//GEN token
+		expires := time.Now().Add(time.Second * 60)
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"username": userLogin.Login,
+			"admin": false,
+			"exp":      expires.Unix(),
+		})
+		tokenString, errorToken := token.SignedString([]byte(GetSecretKey()))
+		if errorToken != nil {
+			fmt.Println(errorToken)
+		}
+		cookie := http.Cookie{Name: "token", Value: tokenString, HttpOnly: true, Expires: expires,}
+		http.SetCookie(w, &cookie)
+		json.NewEncoder(w).Encode(JwtToken{Token: tokenString})
+
+		return
+	}
+	//UnAuthorized
+	respondWithJson(w, http.StatusUnauthorized,Exception {UNAUTHORIZED, nil})
+}
+
 //Middleware
 func AuthenticationMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -67,21 +113,4 @@ func AuthenticationMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			respondWithJson(w, http.StatusUnauthorized, Exception{Message:"Not Authorized, token not valid"})
 		}
 	})
-}
-//GEN token
-func (c *Controller) GetToken(w http.ResponseWriter, req *http.Request) {
-
-	expires := time.Now().Add(time.Second * 60)
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"username": "test",
-		"admin": false,
-		"exp":      expires.Unix(),
-	})
-	tokenString, error := token.SignedString([]byte(GetSecretKey()))
-	if error != nil {
-		fmt.Println(error)
-	}
-	cookie := http.Cookie{Name: "token", Value: tokenString, HttpOnly: true, Expires: expires,}
-	http.SetCookie(w, &cookie)
-	json.NewEncoder(w).Encode(JwtToken{Token: tokenString})
 }
