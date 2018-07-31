@@ -109,7 +109,7 @@ func GetMD5Hash(text string) string {
 func NewApi() Api {
 	return Api{
 		Url:       getUrl(),
-		Db:        "ekb",
+		Db:        "sandbox",
 		SecretKey: getSecretKey(),
 	}
 }

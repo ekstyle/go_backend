@@ -18,12 +18,7 @@ type Route struct {
 type Routes []Route
 
 var routes = Routes{
-	Route{
-		"Index",
-		"GET",
-		"", "",
-		"/", controller.IndexHandler,
-	},
+
 	Route{
 		"Login",
 		"POST",

@@ -60,8 +60,7 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 func (c *Controller) IndexHandler(w http.ResponseWriter, r *http.Request) {
-	log.Println("hi")
-	respondWithJson(w, http.StatusOK, Exception{Message: "Empty response!"})
+	http.FileServer(http.Dir("./public")).ServeHTTP(w, r)
 }
 func (с *Controller) SqlHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -156,6 +155,7 @@ func (c *Controller) GetBuildings(w http.ResponseWriter, r *http.Request) {
 	//log.Println(contents)
 	//rgexp, _ := regexp.Compile("^[^?]+")
 	//log.Println(r.URL.Path)
+	repository.SyncEvent(206)
 	respondWithJson(w, OK_CODE_RESPONSE, api.GetBuildings())
 
 }
