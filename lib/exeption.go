@@ -2,8 +2,9 @@ package lib
 
 type Exception struct {
 	Message string `json:"message"`
-	err error
+	Error   string `json:"error"`
 }
+
 const CANT_INSERT_EXEPTION = "Can`t insert in database"
 const CANT_SELECT_EXEPTION = "Can`t select from database"
 const USER_EXIST_EXEPTION = "Can`t add, user already exists"

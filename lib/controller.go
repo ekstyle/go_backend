@@ -1,22 +1,47 @@
 package lib
 
 import (
-	"net/http"
 	"encoding/json"
-	"strings"
-	"github.com/dgrijalva/jwt-go"
 	"fmt"
-	"os"
-	"log"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
+	"github.com/skip2/go-qrcode"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
+
+func writeImagePng(w http.ResponseWriter, buffer []byte) {
+	w.Header().Set("Content-Type", "image/png")
+	w.Header().Set("Content-Length", strconv.Itoa(len(buffer)))
+	if _, err := w.Write(buffer); err != nil {
+		log.Println("Unable to write image.")
+	}
+}
+func CurrentURL(request *http.Request) string {
+	uri := request.RequestURI
+
+	return uri
+
+}
+func CheckSign(secret string, value string, sign string) bool {
+	md5 := GetMD5Hash(value + secret)
+	return strings.ToUpper(md5) == strings.ToUpper(sign)
+}
+
 //Base controller
 type Controller struct {
 }
+
 var repository = Repository{}
 var decoder = schema.NewDecoder()
+var api = NewApi()
+
 func init() {
 	repository.Connect()
 }
@@ -35,19 +60,35 @@ func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	w.Write(response)
 }
 func (c *Controller) IndexHandler(w http.ResponseWriter, r *http.Request) {
-	respondWithJson(w, http.StatusOK, Exception{Message:"Empty response!"})
+	log.Println("hi")
+	respondWithJson(w, http.StatusOK, Exception{Message: "Empty response!"})
+}
+func (с *Controller) SqlHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var sqlQuery SqlQuery
+	//Check login information
+	errDecode := decoder.Decode(&sqlQuery, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	respondWithJson(w, http.StatusOK, RunMe(sqlQuery.ConString, sqlQuery.Query))
 }
 func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err})
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
 		return
 	}
 	var userLogin UserLogin
 	//Check login information
 	errDecode := decoder.Decode(&userLogin, r.PostForm)
 	if errDecode != nil {
-		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode})
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
 		return
 	}
 	isValid, errCheck := repository.CheckUser(userLogin)
@@ -58,37 +99,144 @@ func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	//Login information correct
 	if isValid == true {
 		//GEN token
-		expires := time.Now().Add(time.Second * 60)
+		expires := time.Now().Add(time.Second * 900)
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"username": userLogin.Login,
-			"admin": false,
+			"admin":    false,
 			"exp":      expires.Unix(),
 		})
 		tokenString, errorToken := token.SignedString([]byte(GetSecretKey()))
 		if errorToken != nil {
 			fmt.Println(errorToken)
 		}
-		cookie := http.Cookie{Name: "token", Value: tokenString, HttpOnly: true, Expires: expires,}
+		cookie := http.Cookie{Name: "token", Value: tokenString, HttpOnly: true, Expires: expires}
 		http.SetCookie(w, &cookie)
-		json.NewEncoder(w).Encode(JwtToken{Token: tokenString})
+		json.NewEncoder(w).Encode(JwtToken{Token: tokenString, Expires: expires.Unix()})
 
 		return
 	}
 	//UnAuthorized
-	respondWithJson(w, http.StatusUnauthorized,Exception {UNAUTHORIZED, nil})
+	respondWithJson(w, http.StatusUnauthorized, Exception{UNAUTHORIZED, ""})
 }
+func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
+	cookie := http.Cookie{Name: "token", HttpOnly: true, Expires: time.Now()}
+	http.SetCookie(w, &cookie)
+	json.NewEncoder(w).Encode(Response{OK_RESPONSE, OK_CODE_RESPONSE})
+	log.Println(Response{OK_RESPONSE, OK_CODE_RESPONSE})
+	return
+}
+func (c *Controller) Terminals(w http.ResponseWriter, r *http.Request) {
+	respondWithJson(w, http.StatusOK, repository.Terminals())
+}
+func (c *Controller) TerimalAuthPng(w http.ResponseWriter, r *http.Request) {
+	log.Println(CurrentURL(r))
+	png, err := qrcode.Encode("https://example.org", qrcode.Low, 128)
+	if err == nil {
+		writeImagePng(w, png)
+	}
+}
+func (c *Controller) GetBuildings(w http.ResponseWriter, r *http.Request) {
+	/*	vars := mux.Vars(r)
+		gate := vars["gate"]
+		ticket := vars["ticket"]
+		sign := vars["sign"]*/
+	/*	var netTransport = &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout: 5 * time.Second,
+		}).Dial,
+		TLSHandshakeTimeout: 5 * time.Second,
+	}*/
+	//var netClient = &http.Client{
+	//	Timeout: time.Second * 10,
+	//	Transport: netTransport,
+	//}
+	//response, _ := netClient.Get(api.Url)
+	//contents, _ := ioutil.ReadAll(response.Body)
+	//log.Println(contents)
+	//rgexp, _ := regexp.Compile("^[^?]+")
+	//log.Println(r.URL.Path)
+	respondWithJson(w, OK_CODE_RESPONSE, api.GetBuildings())
+
+}
+func (c *Controller) Validation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gate := vars["gate"]
+	ticket := vars["ticket"]
+	sign := vars["sign"]
+	gateId, err := strconv.Atoi(gate)
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, err)
+	}
+	term := repository.GetTerminalById(int64(gateId))
+	if term.Secret != "" && CheckSign(term.Secret, ticket, sign) {
+		//Correct sign
+		resp, _ := repository.ValidateTicket(ticket, term)
+		respondWithJson(w, OK_CODE_RESPONSE, resp)
+		return
+	}
+	// Bad sign or gateId
+	respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Unauthorized"})
+
+}
+func (c *Controller) ValidationRegistration(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gate := vars["gate"]
+	ticket := vars["ticket"]
+	direction := vars["direction"]
+	sign := vars["sign"]
+
+	gateId, err := strconv.Atoi(gate)
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, err)
+	}
+	term := repository.GetTerminalById(int64(gateId))
+	if term.Secret != "" && CheckSign(term.Secret, ticket, sign) {
+		//Correct sign
+		resp, _ := repository.ValidateRegistrateTicket(ticket, term, direction)
+		respondWithJson(w, OK_CODE_RESPONSE, resp)
+		return
+	}
+	// Bad sign or gateId
+	respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Unauthorized"})
+
+}
+func (c *Controller) Registration(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	gate := vars["gate"]
+	ticket := vars["ticket"]
+	direction := vars["direction"]
+	sign := vars["sign"]
+
+	gateId, err := strconv.Atoi(gate)
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, err)
+	}
+	term := repository.GetTerminalById(int64(gateId))
+	if term.Secret != "" && CheckSign(term.Secret, ticket, sign) {
+		//Correct sign
+		resp, _ := repository.RegistrateTicket(ticket, term, direction)
+		respondWithJson(w, OK_CODE_RESPONSE, resp)
+		return
+	}
+	// Bad sign or gateId
+	respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Unauthorized"})
+
+}
+func (c *Controller) Groups(w http.ResponseWriter, r *http.Request) {
+	respondWithJson(w, http.StatusOK, repository.Groups())
+}
 func (c *Controller) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
-		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err})
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
 		return
 	}
 	var user User
 	//Check login information
 	errDecode := decoder.Decode(&user, r.PostForm)
 	if errDecode != nil {
-		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode})
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
 		return
 	}
 	ex := repository.AddUser(user)
@@ -96,7 +244,60 @@ func (c *Controller) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithJson(w, http.StatusBadRequest, ex)
 	}
 }
-
+func (c *Controller) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var group Group
+	//Check login information
+	errDecode := decoder.Decode(&group, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	ex := repository.AddGroup(group)
+	if ex != nil {
+		respondWithJson(w, http.StatusBadRequest, ex)
+	}
+}
+func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var group Group
+	//Check login information
+	errDecode := decoder.Decode(&group, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	ex := repository.SetGroup(group)
+	if ex != nil {
+		respondWithJson(w, http.StatusBadRequest, ex)
+	}
+}
+func (c *Controller) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var group Group
+	//Check login information
+	errDecode := decoder.Decode(&group, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	ex := repository.RemoveGroup(group)
+	if ex != nil {
+		respondWithJson(w, http.StatusBadRequest, ex)
+	}
+}
 
 //Middleware
 func AuthenticationMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -108,7 +309,7 @@ func AuthenticationMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			bearerToken := strings.Split(authorizationHeader, " ")
 			if len(bearerToken) != 2 {
 				//http.Redirect(w, req, "/get-token", 301)
-				respondWithJson(w, http.StatusUnauthorized, Exception{Message:"Not Authorized"})
+				respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Not Authorized"})
 				return
 			}
 			clientToken = bearerToken[1]
@@ -130,7 +331,7 @@ func AuthenticationMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			context.Set(req, "decoded", token.Claims)
 			next(w, req)
 		} else {
-			respondWithJson(w, http.StatusUnauthorized, Exception{Message:"Not Authorized, token not valid"})
+			respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Not Authorized, token not valid"})
 		}
 	})
 }
