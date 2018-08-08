@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-playground/form"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/schema"
@@ -55,7 +56,7 @@ func GetSecretKey() string {
 }
 func respondWithJson(w http.ResponseWriter, code int, payload interface{}) {
 	response, _ := json.Marshal(payload)
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(code)
 	w.Write(response)
 }
@@ -122,15 +123,39 @@ func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	cookie := http.Cookie{Name: "token", HttpOnly: true, Expires: time.Now()}
 	http.SetCookie(w, &cookie)
 	json.NewEncoder(w).Encode(Response{OK_RESPONSE, OK_CODE_RESPONSE})
-	log.Println(Response{OK_RESPONSE, OK_CODE_RESPONSE})
 	return
 }
 func (c *Controller) Terminals(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusOK, repository.Terminals())
 }
+func (c *Controller) TerminalSet(w http.ResponseWriter, r *http.Request) {
+	decoder := form.NewDecoder()
+	r.ParseForm()
+	var terminal Terminal
+	err := decoder.Decode(&terminal, r.PostForm)
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, err.Error()})
+		return
+	}
+	repository.SetTerminal(terminal)
+	json.NewEncoder(w).Encode(Response{OK_RESPONSE, OK_CODE_RESPONSE})
+}
 func (c *Controller) TerimalAuthPng(w http.ResponseWriter, r *http.Request) {
-	log.Println(CurrentURL(r))
-	png, err := qrcode.Encode("https://example.org", qrcode.Low, 128)
+	vars := mux.Vars(r)
+	gate := vars["id"]
+	id, err := strconv.Atoi(gate)
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, err)
+	}
+	terminalAuth := repository.GetAuthTerminalById(int64(id))
+	//TODO FIX THAT! ERROR!!!!!
+	terminalAuth.Auth.URL = r.Referer()
+	jsonAuth, errjson := json.Marshal(terminalAuth)
+	if err != nil {
+		fmt.Printf("Error: %s", errjson)
+		return
+	}
+	png, err := qrcode.Encode(string(jsonAuth), qrcode.Low, 200)
 	if err == nil {
 		writeImagePng(w, png)
 	}

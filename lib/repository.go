@@ -64,10 +64,20 @@ func (r *Repository) CheckUser(userLogin UserLogin) (bool, *Exception) {
 	return false, nil
 }
 func (r *Repository) Terminals() interface{} {
-	var result []Terminal
-	db.C(TERMINALS_COLLECTION).Find(nil).All(&result)
+	/*	query := []bson.M{{
+			"$lookup": bson.M{
+				"from": "groups",
+				"localField": "groups",
+				"foreignField": "id",
+				"as": "groups",
+			}}}
+		terms :=[]Terminal{}
+		pipe := db.C(TERMINALS_COLLECTION).Pipe(query)
+		pipe.All(&terms)*/
+	var terms []Terminal
+	db.C(TERMINALS_COLLECTION).Find(nil).All(&terms)
 
-	return Terminals{result}
+	return Terminals{terms}
 }
 func (r *Repository) Groups() interface{} {
 	var result []Group
@@ -95,6 +105,12 @@ func (r *Repository) AddUser(user User) *Exception {
 func (r *Repository) SetGroup(group Group) *Exception {
 
 	db.C(GROUPS_COLLECTION).Upsert(bson.M{"name": group.Name}, group)
+	return nil
+}
+
+func (r *Repository) SetTerminal(terminal Terminal) *Exception {
+	log.Println(terminal)
+	db.C(TERMINALS_COLLECTION).Update(bson.M{"id": terminal.Id}, bson.M{"$set": terminal})
 	return nil
 }
 func (r *Repository) AddGroup(group Group) *Exception {
@@ -239,6 +255,11 @@ func (r *Repository) GetActiveEventsByGroups(groups Groups) Events {
 func (r *Repository) GetTerminalById(terminalId int64) Terminal {
 	term := Terminal{}
 	db.C(TERMINALS_COLLECTION).Find(bson.M{"id": terminalId}).One(&term)
+	return term
+}
+func (r *Repository) GetAuthTerminalById(terminalId int64) AuthStruct {
+	term := AuthStruct{}
+	db.C(TERMINALS_COLLECTION).Find(bson.M{"id": terminalId}).One(&term.Auth)
 	return term
 }
 func (r *Repository) CheckTicketForEntry(ticket Ticket) Entry {

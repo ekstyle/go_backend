@@ -41,7 +41,13 @@ var routes = Routes{
 		"Terminals",
 		"GET",
 		"", "",
-		"/terminals/{group}/", controller.Terminals,
+		"/terminals", controller.Terminals,
+	},
+	Route{
+		"TerminalSet",
+		"POST",
+		"", "",
+		"/terminal/{id}", controller.TerminalSet,
 	},
 	Route{
 		"TerminalsAuth",

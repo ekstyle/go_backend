@@ -10,6 +10,15 @@ type User struct {
 	Password string `bson:"password" schema:"password,required"`
 	Active   bool   `bson:"active" schema:"-"`
 }
+type AuthStruct struct {
+	Auth struct {
+		URL       string `json:"url" bson:"-"`
+		ID        string `json:"id" bson:"id"`
+		Title     string `json:"title" bson:"name"`
+		SecretKey string `json:"secret_key" bson:"secret_key"`
+	} `json:"auth"`
+	Sign string `json:"sign"`
+}
 type UserLogin struct {
 	Login    string `schema:"login,required"`
 	Password string `schema:"password,required"`
@@ -26,10 +35,10 @@ type JwtToken struct {
 	Expires int64  `json:"exp"`
 }
 type Terminal struct {
-	Name   string  `json:"name" bson:"name"`
-	Id     int64   `json:"id" bson:"id"`
-	Secret string  `json:"secret" bson:"secret_key"`
-	Groups []int64 `json:"groups" bson:"groups"`
+	Name   string  `json:"name" bson:"name" form:"name"`
+	Id     int64   `json:"id" bson:"id" schema:"id,required" form:"id"`
+	Secret string  `json:"-" bson:"secret_key,omitempty" schema:"-"`
+	Groups []int64 `json:"groups" bson:"groups" schema:"-" form:"groups"`
 }
 type Ticket struct {
 	TicketId      int64  `json:"id,omitempty" bson:"ticket_id"`
