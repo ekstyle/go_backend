@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 )
 
 const xmlPattern_acs_export_event = `<?xml version="1.0" encoding="utf-8"?>
@@ -20,6 +21,11 @@ const xmlPattern_acs_export_event = `<?xml version="1.0" encoding="utf-8"?>
 </request>`
 const xmlPattern_table_buildings = `<?xml version="1.0" encoding="utf-8"?>
 <request db="ekb" module="table_building" format="json">
+    <auth id="api.kassy.ru" />
+</request>`
+const xmlPattern_page_event_list = `<?xml version="1.0" encoding="utf-8"?>
+<request db="%s" module="page_event_list" format="json">
+    <filter show_type_id="" show_id="" rollerman_id="" building_id="%d" hall_id="" date_from="%d" date_to="%d" is_recommend="" />
     <auth id="api.kassy.ru" />
 </request>`
 
@@ -93,6 +99,140 @@ type ACSExportEvent struct {
 	} `json:"content"`
 }
 
+type PageEventList struct {
+	Db     string `json:"db"`
+	Module string `json:"module"`
+	Result struct {
+		Code    int    `json:"code"`
+		Message string `json:"message"`
+	} `json:"result"`
+	Errors  interface{} `json:"errors"`
+	Content struct {
+		Subdivision []struct {
+			ID          string `json:"id"`
+			Db          string `json:"db"`
+			City        string `json:"city"`
+			Title       string `json:"title"`
+			Address     string `json:"address"`
+			Phone       string `json:"phone"`
+			Tz          string `json:"tz"`
+			PriceMarkup string `json:"price_markup"`
+			Port        string `json:"port"`
+			State       string `json:"state"`
+		} `json:"subdivision"`
+		Event []struct {
+			ID          string      `json:"id"`
+			ShowID      string      `json:"show_id"`
+			HallID      string      `json:"hall_id"`
+			RollermanID string      `json:"rollerman_id"`
+			Date        string      `json:"date"`
+			PriceMin    string      `json:"price_min"`
+			PriceMax    string      `json:"price_max"`
+			PriceMarkup interface{} `json:"price_markup"`
+			Vacancies   string      `json:"vacancies"`
+			TemplateID  interface{} `json:"template_id"`
+			IsRecommend string      `json:"is_recommend"`
+			IsPrm       string      `json:"is_prm"`
+			IsBooking   string      `json:"is_booking"`
+			IsSale      string      `json:"is_sale"`
+			EventState  string      `json:"event_state"`
+			State       string      `json:"state"`
+		} `json:"event"`
+		ShowType []struct {
+			ID    string `json:"id"`
+			Title string `json:"title"`
+			Descr string `json:"descr"`
+			Other string `json:"other"`
+			Order string `json:"order"`
+			State string `json:"state"`
+		} `json:"show_type"`
+		Show []struct {
+			ID          string      `json:"id"`
+			TypeID      string      `json:"type_id"`
+			Title       string      `json:"title"`
+			Announce    string      `json:"announce"`
+			Duration    string      `json:"duration"`
+			AgeRating   string      `json:"age_rating"`
+			Rating      string      `json:"rating"`
+			Image       string      `json:"image"`
+			VideoID     string      `json:"video_id"`
+			PriceMarkup interface{} `json:"price_markup"`
+			IsBooking   string      `json:"is_booking"`
+			IsSale      string      `json:"is_sale"`
+			State       string      `json:"state"`
+		} `json:"show"`
+		Rollerman []struct {
+			ID      string `json:"id"`
+			Title   string `json:"title"`
+			Address string `json:"address"`
+			Email   string `json:"email"`
+			Phone   string `json:"phone"`
+			Inn     string `json:"inn"`
+			Okpo    string `json:"okpo"`
+			State   string `json:"state"`
+		} `json:"rollerman"`
+		Hall []struct {
+			ID         string `json:"id"`
+			BuildingID string `json:"building_id"`
+			Title      string `json:"title"`
+			Descr      string `json:"descr"`
+			TemplateID string `json:"template_id"`
+			State      string `json:"state"`
+		} `json:"hall"`
+		Building []struct {
+			ID          string `json:"id"`
+			TypeID      string `json:"type_id"`
+			CityID      string `json:"city_id"`
+			Title       string `json:"title"`
+			Descr       string `json:"descr"`
+			Address     string `json:"address"`
+			Phone       string `json:"phone"`
+			URL         string `json:"url"`
+			Workhrs     string `json:"workhrs"`
+			HallCount   string `json:"hall_count"`
+			GeoLat      string `json:"geo_lat"`
+			GeoLng      string `json:"geo_lng"`
+			PriceMarkup string `json:"price_markup"`
+			IsBooking   string `json:"is_booking"`
+			IsSale      string `json:"is_sale"`
+			State       string `json:"state"`
+		} `json:"building"`
+	} `json:"content"`
+}
+
+func (pg *PageEventList) ShowTitleById(showId string) string {
+	for i := range pg.Content.Show {
+		if pg.Content.Show[i].ID == showId {
+			return pg.Content.Show[i].Title
+		}
+	}
+	return ""
+}
+func (pg *PageEventList) HallTitleById(hallid string) string {
+	for i := range pg.Content.Hall {
+		if pg.Content.Hall[i].ID == hallid {
+			return pg.Content.Hall[i].Title
+		}
+	}
+	return ""
+}
+
+func (pg *PageEventList) ToEvents() Events {
+
+	events := Events{}
+	for i := range pg.Content.Event {
+		event := Event{}
+		event.Title = pg.ShowTitleById(pg.Content.Event[i].ShowID)
+		event.Id, _ = strconv.ParseInt(pg.Content.Event[i].ID, 10, 32)
+		event.EventDT, _ = strconv.ParseInt(pg.Content.Event[i].Date, 10, 32)
+		event.VenueId, _ = strconv.ParseInt(pg.Content.Building[0].ID, 10, 32)
+		event.VenueTitle = pg.Content.Building[0].Title
+		event.Hall = pg.HallTitleById(pg.Content.Event[i].HallID)
+		event.HallId, _ = strconv.ParseInt(pg.Content.Event[i].HallID, 10, 32)
+		events.Events = append(events.Events, event)
+	}
+	return events
+}
 func getUrl() string {
 	return os.Getenv("API_URL")
 }
@@ -109,7 +249,7 @@ func GetMD5Hash(text string) string {
 func NewApi() Api {
 	return Api{
 		Url:       getUrl(),
-		Db:        "sandbox",
+		Db:        "ekb",
 		SecretKey: getSecretKey(),
 	}
 }
@@ -120,7 +260,7 @@ func (api *Api) Source() string {
 func (api *Api) Sync() {
 
 }
-func (api *Api) GetEventACS(eventid int) ACSExportEvent {
+func (api *Api) GetEventACS(eventid int64) ACSExportEvent {
 	xml := fmt.Sprintf(xmlPattern_acs_export_event, api.Db, eventid)
 	form := url.Values{
 		"xml":  {xml},
@@ -138,8 +278,28 @@ func (api *Api) GetEventACS(eventid int) ACSExportEvent {
 	}
 	var acsExportEvent ACSExportEvent
 	json.Unmarshal(body_byte, &acsExportEvent)
-	log.Println(acsExportEvent.Content.Data.Event.Tickets)
 	return acsExportEvent
+}
+func (api *Api) PageEventList(buildingId int64, dtFrom int64, dtTo int64) PageEventList {
+	xml := fmt.Sprintf(xmlPattern_page_event_list, api.Db, buildingId, dtFrom, dtTo)
+	form := url.Values{
+		"xml":  {xml},
+		"sign": {GetMD5Hash(xml + api.SecretKey)},
+	}
+	body := bytes.NewBufferString(form.Encode())
+	rsp, err := http.Post(api.Url, "application/x-www-form-urlencoded", body)
+	if err != nil {
+		panic(err)
+	}
+	defer rsp.Body.Close()
+	body_byte, err := ioutil.ReadAll(rsp.Body)
+	if err != nil {
+		panic(err)
+	}
+	var page PageEventList
+	json.Unmarshal(body_byte, &page)
+	log.Println(page)
+	return page
 }
 func (api *Api) GetBuildings() []Building {
 	form := url.Values{
@@ -158,5 +318,6 @@ func (api *Api) GetBuildings() []Building {
 	}
 	var tableBuildings TableBuildings
 	json.Unmarshal(body_byte, &tableBuildings)
+	log.Println(tableBuildings.Content)
 	return tableBuildings.Content
 }

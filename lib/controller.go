@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -24,10 +25,9 @@ func writeImagePng(w http.ResponseWriter, buffer []byte) {
 		log.Println("Unable to write image.")
 	}
 }
-func CurrentURL(request *http.Request) string {
-	uri := request.RequestURI
-
-	return uri
+func getHostnameFromUrl(url string) string {
+	reg := regexp.MustCompile("^(?:(?:.*?)?//)?[^/?#;]*")
+	return reg.FindString(url)
 
 }
 func CheckSign(secret string, value string, sign string) bool {
@@ -45,6 +45,7 @@ var api = NewApi()
 
 func init() {
 	repository.Connect()
+	repository.SyncAllEvents()
 }
 func GetSecretKey() string {
 	key := os.Getenv("SECRET_KEY")
@@ -99,7 +100,7 @@ func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	//Login information correct
 	if isValid == true {
 		//GEN token
-		expires := time.Now().Add(time.Second * 900)
+		expires := time.Now().Add(time.Second * 60 * 60 * 24)
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"username": userLogin.Login,
 			"admin":    false,
@@ -149,16 +150,38 @@ func (c *Controller) TerimalAuthPng(w http.ResponseWriter, r *http.Request) {
 	}
 	terminalAuth := repository.GetAuthTerminalById(int64(id))
 	//TODO FIX THAT! ERROR!!!!!
-	terminalAuth.Auth.URL = r.Referer()
+	terminalAuth.Auth.URL = getHostnameFromUrl(r.Referer())
 	jsonAuth, errjson := json.Marshal(terminalAuth)
 	if err != nil {
 		fmt.Printf("Error: %s", errjson)
 		return
 	}
 	png, err := qrcode.Encode(string(jsonAuth), qrcode.Low, 200)
+	log.Println(string(jsonAuth))
 	if err == nil {
 		writeImagePng(w, png)
 	}
+}
+func (c *Controller) AddTerminalHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var terminal Terminal
+	//Check login information
+	errDecode := decoder.Decode(&terminal, r.PostForm)
+	if errDecode != nil {
+		log.Println(errDecode)
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	repository.AddTerminal(terminal)
+	/*	ex := repository.AddGroup(group)
+		if ex != nil {
+			respondWithJson(w, http.StatusBadRequest, ex)
+		}*/
+
 }
 func (c *Controller) GetBuildings(w http.ResponseWriter, r *http.Request) {
 	/*	vars := mux.Vars(r)
@@ -180,7 +203,7 @@ func (c *Controller) GetBuildings(w http.ResponseWriter, r *http.Request) {
 	//log.Println(contents)
 	//rgexp, _ := regexp.Compile("^[^?]+")
 	//log.Println(r.URL.Path)
-	repository.SyncEvent(206)
+	//repository.SyncEvent(206)
 	respondWithJson(w, OK_CODE_RESPONSE, api.GetBuildings())
 
 }
@@ -287,6 +310,14 @@ func (c *Controller) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 		respondWithJson(w, http.StatusBadRequest, ex)
 	}
 }
+func (c *Controller) EventsByGroupHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idin := vars["id"]
+	id, _ := strconv.Atoi(idin)
+	log.Println("Read event for " + idin)
+	events := repository.GetEventsByGroup(int64(id))
+	respondWithJson(w, OK_CODE_RESPONSE, events)
+}
 func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
 	if err != nil {
@@ -304,6 +335,13 @@ func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	if ex != nil {
 		respondWithJson(w, http.StatusBadRequest, ex)
 	}
+	log.Println("Start sync Event")
+	if group.BuildingId != 0 {
+		pageEvents := api.PageEventList(group.BuildingId, time.Now().Add(-time.Second*60*60*24).Unix(), time.Now().Add(time.Second*60*60*24*90).Unix())
+		repository.AddEvents(pageEvents.ToEvents())
+	}
+	log.Println("End sync Event")
+
 }
 func (c *Controller) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()

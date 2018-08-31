@@ -35,13 +35,19 @@ var routes = Routes{
 		"AddUser",
 		"POST",
 		"", "",
-		"/add_user", AuthenticationMiddleware(controller.AddUserHandler),
+		"/add_user", controller.AddUserHandler,
 	},
 	Route{
 		"Terminals",
 		"GET",
 		"", "",
 		"/terminals", controller.Terminals,
+	},
+	Route{
+		"Terminals",
+		"POST",
+		"", "",
+		"/add_terminal", controller.AddTerminalHandler,
 	},
 	Route{
 		"TerminalSet",
@@ -60,6 +66,12 @@ var routes = Routes{
 		"GET",
 		"", "",
 		"/groups", AuthenticationMiddleware(controller.Groups),
+	},
+	Route{
+		"EventsByGroup",
+		"GET",
+		"", "",
+		"/events/{id}", controller.EventsByGroupHandler,
 	},
 	Route{
 		"AddGroup",

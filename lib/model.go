@@ -13,7 +13,7 @@ type User struct {
 type AuthStruct struct {
 	Auth struct {
 		URL       string `json:"url" bson:"-"`
-		ID        string `json:"id" bson:"id"`
+		ID        int64  `json:"id" bson:"id"`
 		Title     string `json:"title" bson:"name"`
 		SecretKey string `json:"secret_key" bson:"secret_key"`
 	} `json:"auth"`
@@ -36,7 +36,7 @@ type JwtToken struct {
 }
 type Terminal struct {
 	Name   string  `json:"name" bson:"name" form:"name"`
-	Id     int64   `json:"id" bson:"id" schema:"id,required" form:"id"`
+	Id     int64   `json:"id" bson:"id" schema:"id" form:"id"`
 	Secret string  `json:"-" bson:"secret_key,omitempty" schema:"-"`
 	Groups []int64 `json:"groups" bson:"groups" schema:"-" form:"groups"`
 }
@@ -51,10 +51,14 @@ type Ticket struct {
 	TicketDt      int64  `json:"dt,omitempty" bson:"ticket_dt"`
 }
 type Event struct {
-	Title string `json:"title,omitempty" bson:"show_title"`
-	Id    int64  `json:"id,omitempty" bson:"event_id"`
-	Dt    int64  `json:"dt,omitempty" bson:"event_dt"`
-	Hall  string `json:"hall,omitempty" bson:"hall_title"`
+	Id         int64  `json:"id,omitempty" bson:"event_id"`
+	Title      string `json:"title,omitempty" bson:"show_title"`
+	EventDT    int64  `json:"dt,omitempty" bson:"event_dt"`
+	VenueId    int64  `json:"venue_id,omitempty" bson:"venue_id"`
+	VenueTitle string `json:"venue_title,omitempty" bson:"venue_title"`
+	HallId     int64  `json:"hall_id,omitempty" bson:"hall_id"`
+	Hall       string `json:"hall,omitempty" bson:"hall_title"`
+	LastUpdate int64  `json:"last_update" bson:"last_update"`
 }
 type Terminals struct {
 	Terminals []Terminal `json:"terminals"`

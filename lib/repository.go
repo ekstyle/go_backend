@@ -7,6 +7,7 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"log"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -47,6 +48,11 @@ func getResultForEntry(entryItem Entry) (entry bool, exit bool) {
 func hashPassword(pass string) string {
 	hash := md5.New()
 	hash.Write([]byte(pass + SALT))
+	return hex.EncodeToString(hash.Sum(nil))
+}
+func genSecretKey() string {
+	hash := md5.New()
+	hash.Write([]byte(time.Now().String() + SALT))
 	return hex.EncodeToString(hash.Sum(nil))
 }
 func (r *Repository) CheckUser(userLogin UserLogin) (bool, *Exception) {
@@ -105,12 +111,34 @@ func (r *Repository) AddUser(user User) *Exception {
 func (r *Repository) SetGroup(group Group) *Exception {
 
 	db.C(GROUPS_COLLECTION).Upsert(bson.M{"name": group.Name}, group)
+	log.Println(group)
 	return nil
 }
 
 func (r *Repository) SetTerminal(terminal Terminal) *Exception {
 	log.Println(terminal)
 	db.C(TERMINALS_COLLECTION).Update(bson.M{"id": terminal.Id}, bson.M{"$set": terminal})
+	return nil
+}
+func (r *Repository) AddTerminal(terminal Terminal) *Exception {
+
+	terminalCount, errFind := db.C(TERMINALS_COLLECTION).Find(bson.M{"name": terminal.Name}).Count()
+	if errFind != nil {
+		return &Exception{CANT_SELECT_EXEPTION, errFind.Error()}
+	}
+	if terminalCount > 0 {
+		return &Exception{TERMINAL_EXIST_EXEPTION, ""}
+	}
+
+	//find max Id
+	var trm Terminal
+	db.C(TERMINALS_COLLECTION).Find(nil).Sort("-id").One(&trm)
+	terminal.Id = trm.Id + 1
+	terminal.Secret = genSecretKey()
+	errInsert := db.C(TERMINALS_COLLECTION).Insert(terminal)
+	if errInsert != nil {
+		return &Exception{CANT_INSERT_EXEPTION, errInsert.Error()}
+	}
 	return nil
 }
 func (r *Repository) AddGroup(group Group) *Exception {
@@ -122,6 +150,10 @@ func (r *Repository) AddGroup(group Group) *Exception {
 	if groupCount > 0 {
 		return &Exception{USER_EXIST_EXEPTION, ""}
 	}
+	//find max Id
+	var grp Group
+	db.C(GROUPS_COLLECTION).Find(nil).Sort("-id").One(&grp)
+	group.Id = grp.Id + 1
 
 	errInsert := db.C(GROUPS_COLLECTION).Insert(group)
 	if errInsert != nil {
@@ -135,7 +167,34 @@ func (r *Repository) RemoveGroup(group Group) *Exception {
 
 	return nil
 }
-func (r *Repository) SyncEvent(eventId int) *Exception {
+func (r *Repository) AddEvents(events Events) *Exception {
+
+	bulk := db.C(EVENTS_COLLECTION).Bulk()
+	timeUnix := time.Now().Unix()
+	for _, element := range events.Events {
+		element.LastUpdate = timeUnix
+		bulk.Upsert(bson.M{"event_id": element.Id}, element)
+	}
+	bulk.Run()
+	return nil
+	/*	//remove old items
+		if err == nil {
+			db.C(EVENTS_COLLECTION).RemoveAll(bson.M{"event_id": eventExport.Content.Data.Event.EventID, "source": source, "last_update": bson.M{"$lt": timeUnix}})
+		}
+		return nil*/
+}
+
+func (r *Repository) SyncAllEvents() *Exception {
+	events := Events{}
+	db.C(EVENTS_COLLECTION).Find(nil).All(&events.Events)
+	//sync Tickets
+	for _, element := range events.Events {
+		r.SyncEvent(element.Id)
+	}
+	return nil
+}
+
+func (r *Repository) SyncEvent(eventId int64) *Exception {
 	eventExport := api.GetEventACS(eventId)
 	//sync Event
 	db.C(EVENTS_COLLECTION).Upsert(bson.M{"event_id": eventExport.Content.Data.Event.EventID}, eventExport.Content.Data.Event)
@@ -149,6 +208,9 @@ func (r *Repository) SyncEvent(eventId int) *Exception {
 		element.Source = source
 		bulk.Upsert(bson.M{"ticket_id": element.TicketID, "event_id": element.EventID}, element)
 	}
+	log.Println("Event ID " + strconv.FormatInt(eventId, 10))
+	log.Println(len(eventExport.Content.Data.Event.Tickets))
+	log.Println("ticket synced")
 	_, err := bulk.Run()
 	//remove old items
 	if err == nil {
@@ -250,6 +312,16 @@ func (r *Repository) GetGroupsByTerminal(terminal Terminal) Groups {
 func (r *Repository) GetActiveEventsByGroups(groups Groups) Events {
 	events := Events{}
 	db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": bson.M{"$in": groups.BildingsIds()}}).All(&events.Events)
+	return events
+}
+func (r *Repository) GetEventsByGroup(groupId int64) Events {
+	group := Group{}
+	events := Events{}
+	db.C(GROUPS_COLLECTION).Find(bson.M{"id": groupId}).One(&group)
+	if group != (Group{}) {
+		log.Println(group)
+		db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": group.BuildingId}).All(&events.Events)
+	}
 	return events
 }
 func (r *Repository) GetTerminalById(terminalId int64) Terminal {
