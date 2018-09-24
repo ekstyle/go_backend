@@ -194,8 +194,9 @@ func (r *Repository) SyncAllEvents() *Exception {
 	return nil
 }
 
-func (r *Repository) SyncEvent(eventId int64) *Exception {
+func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	eventExport := api.GetEventACS(eventId)
+	log.Println(eventExport)
 	//sync Event
 	db.C(EVENTS_COLLECTION).Upsert(bson.M{"event_id": eventExport.Content.Data.Event.EventID}, eventExport.Content.Data.Event)
 	//sync Tickets
@@ -212,11 +213,16 @@ func (r *Repository) SyncEvent(eventId int64) *Exception {
 	log.Println(len(eventExport.Content.Data.Event.Tickets))
 	log.Println("ticket synced")
 	_, err := bulk.Run()
+	log.Println("delete old")
 	//remove old items
 	if err == nil {
 		db.C(TICKETS_COLLECTION).RemoveAll(bson.M{"event_id": eventExport.Content.Data.Event.EventID, "source": source, "last_update": bson.M{"$lt": timeUnix}})
 	}
-	return nil
+	var event Event
+	db.C(EVENTS_COLLECTION).Find(bson.M{"event_id": eventId}).One(&event)
+
+	log.Println("end")
+	return event, nil
 }
 func (r *Repository) ValidateTicket(barcode string, term Terminal) (SKDResponse, *Exception) {
 	curentGroups := r.GetGroupsByTerminal(term)

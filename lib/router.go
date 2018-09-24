@@ -62,6 +62,12 @@ var routes = Routes{
 		"/terminal/{id}/auth.png", controller.TerimalAuthPng,
 	},
 	Route{
+		"INIT",
+		"GET",
+		"", "",
+		"/init", controller.InitInstance,
+	},
+	Route{
 		"Groups",
 		"GET",
 		"", "",
@@ -72,6 +78,12 @@ var routes = Routes{
 		"GET",
 		"", "",
 		"/events/{id}", controller.EventsByGroupHandler,
+	},
+	Route{
+		"EventSync",
+		"GET",
+		"", "",
+		"/events/{id}/sync", controller.EventSync,
 	},
 	Route{
 		"AddGroup",

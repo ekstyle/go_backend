@@ -45,7 +45,6 @@ var api = NewApi()
 
 func init() {
 	repository.Connect()
-	repository.SyncAllEvents()
 }
 func GetSecretKey() string {
 	key := os.Getenv("SECRET_KEY")
@@ -129,6 +128,12 @@ func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) Terminals(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusOK, repository.Terminals())
 }
+
+func (c *Controller) InitInstance(w http.ResponseWriter, r *http.Request) {
+	user := User{"demo", "demo", true}
+	repository.AddUser(user)
+	respondWithJson(w, http.StatusOK, nil)
+}
 func (c *Controller) TerminalSet(w http.ResponseWriter, r *http.Request) {
 	decoder := form.NewDecoder()
 	r.ParseForm()
@@ -184,26 +189,6 @@ func (c *Controller) AddTerminalHandler(w http.ResponseWriter, r *http.Request) 
 
 }
 func (c *Controller) GetBuildings(w http.ResponseWriter, r *http.Request) {
-	/*	vars := mux.Vars(r)
-		gate := vars["gate"]
-		ticket := vars["ticket"]
-		sign := vars["sign"]*/
-	/*	var netTransport = &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout: 5 * time.Second,
-		}).Dial,
-		TLSHandshakeTimeout: 5 * time.Second,
-	}*/
-	//var netClient = &http.Client{
-	//	Timeout: time.Second * 10,
-	//	Transport: netTransport,
-	//}
-	//response, _ := netClient.Get(api.Url)
-	//contents, _ := ioutil.ReadAll(response.Body)
-	//log.Println(contents)
-	//rgexp, _ := regexp.Compile("^[^?]+")
-	//log.Println(r.URL.Path)
-	//repository.SyncEvent(206)
 	respondWithJson(w, OK_CODE_RESPONSE, api.GetBuildings())
 
 }
@@ -316,6 +301,14 @@ func (c *Controller) EventsByGroupHandler(w http.ResponseWriter, r *http.Request
 	id, _ := strconv.Atoi(idin)
 	log.Println("Read event for " + idin)
 	events := repository.GetEventsByGroup(int64(id))
+	respondWithJson(w, OK_CODE_RESPONSE, events)
+}
+func (c *Controller) EventSync(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idin := vars["id"]
+	id, _ := strconv.Atoi(idin)
+	log.Println("Sync event  " + idin)
+	events, _ := repository.SyncEvent(int64(id))
 	respondWithJson(w, OK_CODE_RESPONSE, events)
 }
 func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
