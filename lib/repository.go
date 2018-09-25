@@ -14,6 +14,7 @@ import (
 type Repository struct {
 	Server   string
 	Database string
+	Session  *mgo.Session
 }
 
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
@@ -29,13 +30,14 @@ var db *mgo.Database
 func (r *Repository) Connect() {
 	r.Server = os.Getenv("MONGO_URL")
 	r.Database = os.Getenv("MONGO_DB")
-	session, err := mgo.Dial(r.Server)
+	var err error
+	r.Session, err = mgo.Dial(r.Server)
 	if err != nil {
 		log.Fatal(err)
 	}
-	session.SetMode(mgo.Monotonic, true)
+	r.Session.SetMode(mgo.Monotonic, true)
 	log.Println("Connected to ", r.Server, "with", r.Database, "database.")
-	db = session.DB(r.Database)
+	db = r.Session.DB(r.Database)
 	// Optional. Switch the session to a monotonic behavior.
 
 }
@@ -195,13 +197,17 @@ func (r *Repository) SyncAllEvents() *Exception {
 }
 
 func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
+	session := r.Session.Clone()
+	defer session.Close()
+
 	eventExport := api.GetEventACS(eventId)
 	log.Println(eventExport)
-	//sync Event
-	db.C(EVENTS_COLLECTION).Upsert(bson.M{"event_id": eventExport.Content.Data.Event.EventID}, eventExport.Content.Data.Event)
-	//sync Tickets
-	bulk := db.C(TICKETS_COLLECTION).Bulk()
 	timeUnix := time.Now().Unix()
+	eventExport.Content.Data.Event.LastUpdate = timeUnix
+	//sync Event
+	session.DB(r.Database).C(EVENTS_COLLECTION).Upsert(bson.M{"event_id": eventExport.Content.Data.Event.EventID}, eventExport.Content.Data.Event)
+	//sync Tickets
+	bulk := session.DB(r.Database).C(TICKETS_COLLECTION).Bulk()
 	source := api.Source()
 	for _, element := range eventExport.Content.Data.Event.Tickets {
 		element.EventID = eventExport.Content.Data.Event.EventID
@@ -216,11 +222,11 @@ func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	log.Println("delete old")
 	//remove old items
 	if err == nil {
-		db.C(TICKETS_COLLECTION).RemoveAll(bson.M{"event_id": eventExport.Content.Data.Event.EventID, "source": source, "last_update": bson.M{"$lt": timeUnix}})
+		session.DB(r.Database).C(TICKETS_COLLECTION).RemoveAll(bson.M{"event_id": eventExport.Content.Data.Event.EventID, "source": source, "last_update": bson.M{"$lt": timeUnix}})
 	}
 	var event Event
-	db.C(EVENTS_COLLECTION).Find(bson.M{"event_id": eventId}).One(&event)
-
+	session.DB(r.Database).C(EVENTS_COLLECTION).Find(bson.M{"event_id": eventId}).One(&event)
+	event.TicketsCached = r.GetTicketsCountByEvent(event)
 	log.Println("end")
 	return event, nil
 }
@@ -328,7 +334,17 @@ func (r *Repository) GetEventsByGroup(groupId int64) Events {
 		log.Println(group)
 		db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": group.BuildingId}).All(&events.Events)
 	}
+	for i, event := range events.Events {
+		event.TicketsCached = r.GetTicketsCountByEvent(event)
+		events.Events[i] = event
+	}
+	log.Println(events)
 	return events
+}
+func (r *Repository) GetTicketsCountByEvent(event Event) int {
+
+	ticketsCount, _ := db.C(TICKETS_COLLECTION).Find(bson.M{"event_id": event.Id}).Count()
+	return ticketsCount
 }
 func (r *Repository) GetTerminalById(terminalId int64) Terminal {
 	term := Terminal{}

@@ -51,14 +51,15 @@ type Ticket struct {
 	TicketDt      int64  `json:"dt,omitempty" bson:"ticket_dt"`
 }
 type Event struct {
-	Id         int64  `json:"id,omitempty" bson:"event_id"`
-	Title      string `json:"title,omitempty" bson:"show_title"`
-	EventDT    int64  `json:"dt,omitempty" bson:"event_dt"`
-	VenueId    int64  `json:"venue_id,omitempty" bson:"venue_id"`
-	VenueTitle string `json:"venue_title,omitempty" bson:"venue_title"`
-	HallId     int64  `json:"hall_id,omitempty" bson:"hall_id"`
-	Hall       string `json:"hall,omitempty" bson:"hall_title"`
-	LastUpdate int64  `json:"last_update" bson:"last_update"`
+	Id            int64  `json:"id,omitempty" bson:"event_id"`
+	Title         string `json:"title,omitempty" bson:"show_title"`
+	EventDT       int64  `json:"dt,omitempty" bson:"event_dt"`
+	VenueId       int64  `json:"venue_id,omitempty" bson:"venue_id"`
+	VenueTitle    string `json:"venue_title,omitempty" bson:"venue_title"`
+	HallId        int64  `json:"hall_id,omitempty" bson:"hall_id"`
+	Hall          string `json:"hall,omitempty" bson:"hall_title"`
+	LastUpdate    int64  `json:"last_update" bson:"last_update"`
+	TicketsCached int    `json:"tickets_cached" bson:"-"`
 }
 type Terminals struct {
 	Terminals []Terminal `json:"terminals"`

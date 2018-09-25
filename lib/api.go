@@ -94,6 +94,7 @@ type ACSExportEvent struct {
 				HallID     int            `bson:"hall_id" json:"hall_id"`
 				HallTitle  string         `bson:"hall_title" json:"hall_title"`
 				Tickets    []TicketExport `bson:"-" json:"tickets"`
+				LastUpdate int64          `bson:"last_update" json:"-"`
 			} `json:"event"`
 		} `json:"data"`
 	} `json:"content"`
