@@ -109,6 +109,13 @@ func (r *Entry) toAction() Action {
 	return Action{r.OperationDt, r.TerminalId, r.Direction}
 }
 
+type Log struct {
+	Dt      int64  `json:"dt" bson:"dt"`
+	Data    string `json:"data" bson:"data"`
+	Message string `json:"message" bson:"message"`
+	Code    int64  `json:"code" bson:"code"`
+}
+
 type Group struct {
 	Id              int64  `bson:"id" json:"id" schema:"id"`
 	Name            string `bson:"name" json:"name" schema:"name,required"`

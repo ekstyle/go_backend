@@ -20,6 +20,12 @@ type Routes []Route
 var routes = Routes{
 
 	Route{
+		"Logs",
+		"Get",
+		"", "",
+		"/logs", AuthenticationMiddleware(controller.LogsHandler),
+	},
+	Route{
 		"Login",
 		"POST",
 		"", "",

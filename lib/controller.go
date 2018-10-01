@@ -118,6 +118,14 @@ func (c *Controller) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	//UnAuthorized
 	respondWithJson(w, http.StatusUnauthorized, Exception{UNAUTHORIZED, ""})
 }
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Do stuff here
+		log.Println(r.RequestURI)
+		// Call the next handler, which can be another middleware in the chain, or the final handler.
+		next.ServeHTTP(w, r)
+	})
+}
 func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	cookie := http.Cookie{Name: "token", HttpOnly: true, Expires: time.Now()}
@@ -209,6 +217,7 @@ func (c *Controller) Validation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Bad sign or gateId
+
 	respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Unauthorized"})
 
 }
@@ -227,10 +236,12 @@ func (c *Controller) ValidationRegistration(w http.ResponseWriter, r *http.Reque
 	if term.Secret != "" && CheckSign(term.Secret, ticket, sign) {
 		//Correct sign
 		resp, _ := repository.ValidateRegistrateTicket(ticket, term, direction)
+		repository.Log(Log{0, ticket, "Result for " + direction + " from gate #" + gate, resp.Result.Code})
 		respondWithJson(w, OK_CODE_RESPONSE, resp)
 		return
 	}
 	// Bad sign or gateId
+	repository.Log(Log{0, ticket, "Bad sign request from gate #" + gate + " sign - " + sign, http.StatusUnauthorized})
 	respondWithJson(w, http.StatusUnauthorized, Exception{Message: "Unauthorized"})
 
 }
@@ -258,6 +269,9 @@ func (c *Controller) Registration(w http.ResponseWriter, r *http.Request) {
 }
 func (c *Controller) Groups(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusOK, repository.Groups())
+}
+func (c *Controller) LogsHandler(w http.ResponseWriter, r *http.Request) {
+	respondWithJson(w, http.StatusOK, repository.Logs())
 }
 func (c *Controller) AddUserHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()
@@ -307,9 +321,9 @@ func (c *Controller) EventSync(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idin := vars["id"]
 	id, _ := strconv.Atoi(idin)
-	log.Println("Sync event  " + idin)
-	events, _ := repository.SyncEvent(int64(id))
-	respondWithJson(w, OK_CODE_RESPONSE, events)
+	event, _ := repository.SyncEvent(int64(id))
+	repository.Log(Log{0, strconv.FormatInt(event.Id, 10), "Event synced. " + strconv.Itoa(event.TicketsCached) + " tickets cached.", OK_CODE_RESPONSE})
+	respondWithJson(w, OK_CODE_RESPONSE, event)
 }
 func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	err := r.ParseForm()

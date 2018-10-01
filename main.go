@@ -34,5 +34,6 @@ func HandlerFs(publicDir string) http.Handler {
 func main() {
 	r := lib.NewRouter()
 	r.PathPrefix("/").Handler(HandlerFs("/public"))
+
 	log.Fatal(http.ListenAndServe(GetPort(), r))
 }

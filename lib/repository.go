@@ -24,6 +24,7 @@ const GROUPS_COLLECTION = "groups"
 const TICKETS_COLLECTION = "tickets"
 const EVENTS_COLLECTION = "events"
 const ENTRY_COLLECTION = "entry"
+const LOGS_COLLECTION = "logs"
 
 var db *mgo.Database
 
@@ -162,6 +163,19 @@ func (r *Repository) AddGroup(group Group) *Exception {
 		return &Exception{CANT_INSERT_EXEPTION, errInsert.Error()}
 	}
 	return nil
+}
+func (r *Repository) Log(log Log) *Exception {
+	log.Dt = time.Now().Unix()
+	errInsert := db.C(LOGS_COLLECTION).Insert(log)
+	if errInsert != nil {
+		return &Exception{CANT_INSERT_EXEPTION, errInsert.Error()}
+	}
+	return nil
+}
+func (r *Repository) Logs() []Log {
+	var logs []Log
+	db.C(LOGS_COLLECTION).Find(nil).All(&logs)
+	return logs
 }
 func (r *Repository) RemoveGroup(group Group) *Exception {
 
