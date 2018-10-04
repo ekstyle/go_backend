@@ -1,9 +1,16 @@
 package lib
 
+import (
+	"log"
+	"time"
+)
+
 const ( // iota is reset to 0
 	Entry_entry = iota // c0 == 0
 	Entry_exit  = iota // c1 == 1
 )
+
+const TICKET_LOCK_TIME_FOR_REENTRY = 10
 
 type User struct {
 	Login    string `bson:"login" schema:"login,required"`
@@ -61,6 +68,44 @@ type Event struct {
 	LastUpdate    int64  `json:"last_update" bson:"last_update"`
 	TicketsCached int    `json:"tickets_cached" bson:"-"`
 }
+type TicketsLocked struct {
+	Tickets []TicketLocked
+}
+type TicketLocked struct {
+	Barcode     string
+	LockExpires int64
+}
+
+func (r *TicketsLocked) isLock(barode string) bool {
+	log.Println(r.Tickets)
+	for i := 0; i < len(r.Tickets); i++ {
+		//delete old
+		if r.Tickets[i].LockExpires <= time.Now().Unix() {
+			r.Tickets = append(r.Tickets[:i], r.Tickets[i+1:]...)
+			i--
+			if i < 0 {
+				return false
+			}
+		}
+		if r.Tickets[i].Barcode == barode {
+			return r.Tickets[i].LockExpires >= time.Now().Unix()
+		}
+	}
+	return false
+}
+func (r *TicketsLocked) addLock(barode string) {
+	if !r.isLock(barode) {
+		r.Tickets = append(r.Tickets, TicketLocked{barode, time.Now().Add(time.Second * TICKET_LOCK_TIME_FOR_REENTRY).Unix()})
+	}
+}
+
+type TicketsMaster struct {
+	Tickets []TicketMaster
+}
+type TicketMaster struct {
+	Barcode string
+}
+
 type Terminals struct {
 	Terminals []Terminal `json:"terminals"`
 }

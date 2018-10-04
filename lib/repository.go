@@ -27,6 +27,7 @@ const ENTRY_COLLECTION = "entry"
 const LOGS_COLLECTION = "logs"
 
 var db *mgo.Database
+var ticketsLocked TicketsLocked
 
 func (r *Repository) Connect() {
 	r.Server = os.Getenv("MONGO_URL")
@@ -264,19 +265,30 @@ func (r *Repository) ValidateTicket(barcode string, term Terminal) (SKDResponse,
 func (r *Repository) ValidateRegistrateTicket(barcode string, term Terminal, direction string) (SKDRegistrationResponse, *Exception) {
 	curentGroups := r.GetGroupsByTerminal(term)
 	currentEvents := r.GetActiveEventsByGroups(curentGroups)
-	log.Println(currentEvents.EventsIds())
 	ticket := Ticket{}
 	db.C(TICKETS_COLLECTION).Find(bson.M{"ticket_barcode": barcode, "event_id": bson.M{"$in": currentEvents.EventsIds()}}).One(&ticket)
 
 	if (Ticket{}) != ticket {
+
 		entryItem := r.CheckTicketForEntry(ticket)
 		entry, exit := getResultForEntry(entryItem)
+		if ticketsLocked.isLock(barcode) {
+			//Reenty for LockTicket
+			entryRecord := Entry{ticket.EventId, ticket.TicketBarcode, term.Id, time.Now().Unix(), ENTRY_RESULT_CODE_REENTRY, direction}
+			errInsert := db.C(ENTRY_COLLECTION).Insert(entryRecord)
+			if errInsert != nil {
+				return SKDRegistrationResponse{}, &Exception{CANT_INSERT_EXEPTION, errInsert.Error()}
+			}
+			return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_REENTRY, false, false}, ticket, currentEvents.EventById(ticket.EventId), entryItem.toAction()}, nil
+		}
 		if entry && direction == "entry" {
 			//Entry allowed
+			ticketsLocked.addLock(barcode)
 			return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_ACCEPT, entry, exit}, ticket, currentEvents.EventById(ticket.EventId), entryItem.toAction()}, nil
 		}
 		if exit && direction == "exit" {
 			//Exit
+			ticketsLocked.addLock(barcode)
 			return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_ACCEPT, entry, exit}, ticket, currentEvents.EventById(ticket.EventId), entryItem.toAction()}, nil
 		}
 		//reentry
