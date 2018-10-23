@@ -136,6 +136,22 @@ func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) Terminals(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusOK, repository.Terminals())
 }
+func (c *Controller) CheckTicketHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var check CheckTiket
+	//Check login information
+	errDecode := decoder.Decode(&check, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+
+	respondWithJson(w, OK_CODE_RESPONSE, repository.CheckTicket(check))
+}
 
 func (c *Controller) InitInstance(w http.ResponseWriter, r *http.Request) {
 	user := User{"demo", "demo", true}
@@ -305,6 +321,24 @@ func (c *Controller) AddGroupHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ex := repository.AddGroup(group)
+	if ex != nil {
+		respondWithJson(w, http.StatusBadRequest, ex)
+	}
+}
+func (c *Controller) AddMasterKeyHandler(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var masterKey MasterKey
+	//Check login information
+	errDecode := decoder.Decode(&masterKey, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	ex := repository.AddMasterKey(masterKey)
 	if ex != nil {
 		respondWithJson(w, http.StatusBadRequest, ex)
 	}

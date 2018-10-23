@@ -25,9 +25,11 @@ const TICKETS_COLLECTION = "tickets"
 const EVENTS_COLLECTION = "events"
 const ENTRY_COLLECTION = "entry"
 const LOGS_COLLECTION = "logs"
+const MASTERKEY_COLLECTION = "masterkey"
 
 var db *mgo.Database
 var ticketsLocked TicketsLocked
+var masterKeys MasterKeys
 
 func (r *Repository) Connect() {
 	r.Server = os.Getenv("MONGO_URL")
@@ -37,10 +39,11 @@ func (r *Repository) Connect() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	r.Session.SetMode(mgo.Monotonic, true)
+	r.Session.SetMode(mgo.Eventual, false)
 	log.Println("Connected to ", r.Server, "with", r.Database, "database.")
 	db = r.Session.DB(r.Database)
 	// Optional. Switch the session to a monotonic behavior.
+	r.LoadMasterKeys()
 
 }
 func getResultForEntry(entryItem Entry) (entry bool, exit bool) {
@@ -165,6 +168,27 @@ func (r *Repository) AddGroup(group Group) *Exception {
 	}
 	return nil
 }
+
+func (r *Repository) AddMasterKey(key MasterKey) *Exception {
+	//Try to find user
+	keycount, errFind := db.C(MASTERKEY_COLLECTION).Find(bson.M{"barcode": key.Barcode}).Count()
+	if errFind != nil {
+		return &Exception{CANT_SELECT_EXEPTION, errFind.Error()}
+	}
+	if keycount > 0 {
+		return &Exception{MASTERKEY_EXIST_EXEPTION, ""}
+	}
+	errInsert := db.C(MASTERKEY_COLLECTION).Insert(key)
+	if errInsert != nil {
+		return &Exception{CANT_INSERT_EXEPTION, errInsert.Error()}
+	}
+	return nil
+}
+func (r *Repository) LoadMasterKeys() {
+	//Try to find user
+	db.C(MASTERKEY_COLLECTION).Find(nil).All(&masterKeys.keys)
+}
+
 func (r *Repository) Log(log Log) *Exception {
 	log.Dt = time.Now().Unix()
 	errInsert := db.C(LOGS_COLLECTION).Insert(log)
@@ -214,6 +238,7 @@ func (r *Repository) SyncAllEvents() *Exception {
 func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	session := r.Session.Clone()
 	defer session.Close()
+	log.Println(session.Mode())
 
 	eventExport := api.GetEventACS(eventId)
 	log.Println(eventExport)
@@ -263,6 +288,9 @@ func (r *Repository) ValidateTicket(barcode string, term Terminal) (SKDResponse,
 
 }
 func (r *Repository) ValidateRegistrateTicket(barcode string, term Terminal, direction string) (SKDRegistrationResponse, *Exception) {
+	if masterKeys.is(barcode) { //Master key
+		return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_ACCEPT, direction == "entry", direction == "exit"}, Ticket{}, Event{}, Action{}}, nil
+	}
 	curentGroups := r.GetGroupsByTerminal(term)
 	currentEvents := r.GetActiveEventsByGroups(curentGroups)
 	ticket := Ticket{}
@@ -304,6 +332,9 @@ func (r *Repository) ValidateRegistrateTicket(barcode string, term Terminal, dir
 	return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_NOTFOUND, false, false}, ticket, Event{}, Action{}}, nil
 }
 func (r *Repository) RegistrateTicket(barcode string, term Terminal, direction string) (SKDResult, *Exception) {
+	if masterKeys.is(barcode) { //Master key
+		return SKDResult{ENTRY_RESULT_CODE_ACCEPT}, nil
+	}
 	curentGroups := r.GetGroupsByTerminal(term)
 	currentEvents := r.GetActiveEventsByGroups(curentGroups)
 	log.Println(currentEvents.EventsIds())
@@ -352,6 +383,11 @@ func (r *Repository) GetActiveEventsByGroups(groups Groups) Events {
 	db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": bson.M{"$in": groups.BildingsIds()}}).All(&events.Events)
 	return events
 }
+func (r *Repository) GetEventById(id int64) Event {
+	event := Event{}
+	db.C(EVENTS_COLLECTION).Find(bson.M{"event_id": id}).One(&event)
+	return event
+}
 func (r *Repository) GetEventsByGroup(groupId int64) Events {
 	group := Group{}
 	events := Events{}
@@ -386,4 +422,10 @@ func (r *Repository) CheckTicketForEntry(ticket Ticket) Entry {
 	entry := Entry{}
 	db.C(ENTRY_COLLECTION).Find(bson.M{"ticket_barcode": ticket.TicketBarcode, "event_id": ticket.EventId, "result_code": ENTRY_RESULT_CODE_ACCEPT}).Sort("-operation_dt").One(&entry)
 	return entry
+}
+func (r *Repository) CheckTicket(check CheckTiket) CheckResult {
+	ticket := Ticket{}
+	db.C(TICKETS_COLLECTION).Find(bson.M{"ticket_barcode": check.Barcode}).One(&ticket)
+	event := r.GetEventById(ticket.EventId)
+	return CheckResult{event, ticket}
 }

@@ -56,6 +56,12 @@ var routes = Routes{
 		"/add_terminal", controller.AddTerminalHandler,
 	},
 	Route{
+		"CheckTicket",
+		"POST",
+		"", "",
+		"/check_ticket", controller.CheckTicketHandler,
+	},
+	Route{
 		"TerminalSet",
 		"POST",
 		"", "",
@@ -96,6 +102,12 @@ var routes = Routes{
 		"POST",
 		"", "",
 		"/add_group", AuthenticationMiddleware(controller.AddGroupHandler),
+	},
+	Route{
+		"AddMasterKey",
+		"POST",
+		"", "",
+		"/add_masterkey", AuthenticationMiddleware(controller.AddMasterKeyHandler),
 	},
 	Route{
 		"SetGroup",

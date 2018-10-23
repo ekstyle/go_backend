@@ -12,6 +12,28 @@ const ( // iota is reset to 0
 
 const TICKET_LOCK_TIME_FOR_REENTRY = 10
 
+type MasterKey struct {
+	Barcode string `json:"barcode" bson:"barcode"`
+}
+type MasterKeys struct {
+	keys []MasterKey
+}
+
+func (r *MasterKeys) is(barode string) bool {
+	for i := 0; i < len(r.keys); i++ {
+		//delete old
+		if r.keys[i].Barcode == barode {
+			return true
+		}
+	}
+	return false
+}
+func (r *MasterKeys) add(barode string) {
+	if !r.is(barode) {
+		r.keys = append(r.keys, MasterKey{barode})
+	}
+}
+
 type User struct {
 	Login    string `bson:"login" schema:"login,required"`
 	Password string `bson:"password" schema:"password,required"`
@@ -30,6 +52,13 @@ type UserLogin struct {
 	Login    string `schema:"login,required"`
 	Password string `schema:"password,required"`
 }
+type CheckTiket struct {
+	Barcode string `json:"barcode" bson:"barcode"`
+}
+type CheckResult struct {
+	Event  Event  `json:"event"`
+	Ticket Ticket `json:"ticket"`
+}
 type Sign struct {
 	Sign string `schema:"sign,required"`
 }
@@ -47,6 +76,7 @@ type Terminal struct {
 	Secret string  `json:"-" bson:"secret_key,omitempty" schema:"-"`
 	Groups []int64 `json:"groups" bson:"groups" schema:"-" form:"groups"`
 }
+
 type Ticket struct {
 	TicketId      int64  `json:"id,omitempty" bson:"ticket_id"`
 	EventId       int64  `json:"-" bson:"event_id"`
