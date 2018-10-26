@@ -13,9 +13,9 @@ import (
 )
 
 const GATE = "1"
-const BARCODEFORTEST = "2814145435756"
+const BARCODEFORTEST = "027841674080"
 const SECRETKEY = "c2c75d91ba173b36bd643f24375f6023"
-const MASTERKEY = "1234567890"
+const MASTERKEY = "all open 001"
 
 const FAILSKDRESPONSE = -100
 const OK = 1
@@ -103,6 +103,7 @@ func TestValidationRegistration(t *testing.T) {
 		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, FAIL},                //#3)Reentry
 		{SKDRequest{GATE, "exit", BARCODEFORTEST, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, FAIL},                 //#4)Exit for no entry
 		{SKDRequest{GATE, "entry", BARCODEFORTEST, RandomStr(32)}, GetSKDResponseCodeValidateRegistrate, FAILSKDRESPONSE}, //#5)Not correct sign
+		{SKDRequest{GATE, "entry", MASTERKEY, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, OK},                       //#6)MasterKey
 	}
 	for idx, tt := range fibTests {
 		actual, _ := tt.fn(tt.testData)

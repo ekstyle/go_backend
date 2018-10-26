@@ -3,6 +3,7 @@ package lib
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"fmt"
 	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 	"log"
@@ -18,6 +19,8 @@ type Repository struct {
 }
 
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
+const OPENBEFORE = 60 * 65
+const OPENAFTER = 60 * 90
 const USER_COLLECTION = "users"
 const TERMINALS_COLLECTION = "terminals"
 const GROUPS_COLLECTION = "groups"
@@ -44,6 +47,7 @@ func (r *Repository) Connect() {
 	db = r.Session.DB(r.Database)
 	// Optional. Switch the session to a monotonic behavior.
 	r.LoadMasterKeys()
+	//r.GenDemoData(1,600, 1,"demo")
 
 }
 func getResultForEntry(entryItem Entry) (entry bool, exit bool) {
@@ -62,6 +66,42 @@ func genSecretKey() string {
 	hash.Write([]byte(time.Now().String() + SALT))
 	return hex.EncodeToString(hash.Sum(nil))
 }
+
+func (r *Repository) Maintenance() {
+	log.Println("maintence")
+	r.MaintenceActiveEvents(60)
+}
+
+func (r *Repository) GenDemoData(startNum int, endNum int, eventId int, source string) {
+	timeUnix := time.Now().Unix()
+	var event Event
+	event.Id = int64(eventId)
+	event.Title = source
+	event.VenueTitle = source
+	event.VenueId = 603
+	event.LastUpdate = timeUnix
+	event.EventDT = timeUnix
+
+	r.Session.DB(r.Database).C(EVENTS_COLLECTION).Upsert(bson.M{"event_id": eventId}, event)
+	bulk := r.Session.DB(r.Database).C(TICKETS_COLLECTION).Bulk()
+	for i := 1; i <= 600; i++ {
+		var element TicketExport
+		element.EventID = eventId
+		element.TicketSector = source
+		element.TicketID = i
+		element.TicketBarcode = fmt.Sprintf("%012d", i)
+		element.LastUpdate = timeUnix
+		element.TicketDt = int(timeUnix)
+		element.Source = source
+		bulk.Upsert(bson.M{"ticket_id": element.TicketID, "event_id": element.EventID}, element)
+	}
+	_, err := bulk.Run()
+
+	if err == nil {
+		r.Session.DB(r.Database).C(TICKETS_COLLECTION).RemoveAll(bson.M{"event_id": eventId, "source": source, "last_update": bson.M{"$lt": timeUnix}})
+	}
+}
+
 func (r *Repository) CheckUser(userLogin UserLogin) (bool, *Exception) {
 	//result := &User{}
 	//db.C("users").Insert(&User{"tester","just test"})
@@ -238,7 +278,6 @@ func (r *Repository) SyncAllEvents() *Exception {
 func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	session := r.Session.Clone()
 	defer session.Close()
-	log.Println(session.Mode())
 
 	eventExport := api.GetEventACS(eventId)
 	log.Println(eventExport)
@@ -379,8 +418,18 @@ func (r *Repository) GetGroupsByTerminal(terminal Terminal) Groups {
 	return groups
 }
 func (r *Repository) GetActiveEventsByGroups(groups Groups) Events {
+	timeUnix := time.Now().Unix()
 	events := Events{}
-	db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": bson.M{"$in": groups.BildingsIds()}}).All(&events.Events)
+	db.C(EVENTS_COLLECTION).Find(bson.M{"event_dt": bson.M{"$lte": timeUnix + OPENBEFORE, "$gte": timeUnix - OPENAFTER}, "venue_id": bson.M{"$in": groups.BildingsIds()}}).All(&events.Events)
+	return events
+}
+func (r *Repository) MaintenceActiveEvents(deltaDt int64) Events {
+	timeUnix := time.Now().Unix()
+	events := Events{}
+	db.C(EVENTS_COLLECTION).Find(bson.M{"event_dt": bson.M{"$lte": timeUnix + OPENBEFORE + deltaDt, "$gte": timeUnix - OPENAFTER - deltaDt}}).All(&events.Events)
+	for _, event := range events.Events {
+		r.SyncEvent(event.Id)
+	}
 	return events
 }
 func (r *Repository) GetEventById(id int64) Event {

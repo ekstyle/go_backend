@@ -18,6 +18,8 @@ import (
 	"time"
 )
 
+const MAINTANCERUN = 30
+
 func writeImagePng(w http.ResponseWriter, buffer []byte) {
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Content-Length", strconv.Itoa(len(buffer)))
@@ -45,6 +47,21 @@ var api = NewApi()
 
 func init() {
 	repository.Connect()
+
+	ticker := time.NewTicker(MAINTANCERUN * time.Second)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				repository.Maintenance()
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
+
 }
 func GetSecretKey() string {
 	key := os.Getenv("SECRET_KEY")
