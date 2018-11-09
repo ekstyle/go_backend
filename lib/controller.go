@@ -233,6 +233,14 @@ func (c *Controller) GetBuildings(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, OK_CODE_RESPONSE, api.GetBuildings())
 
 }
+func (c *Controller) EventInfo(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	idin := vars["id"]
+	id, _ := strconv.Atoi(idin)
+	eventInfo := repository.GetEventInfo(int64(id))
+	respondWithJson(w, OK_CODE_RESPONSE, eventInfo)
+
+}
 func (c *Controller) Validation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	gate := vars["gate"]

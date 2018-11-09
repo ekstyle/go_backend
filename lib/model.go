@@ -98,6 +98,11 @@ type Event struct {
 	LastUpdate    int64  `json:"last_update" bson:"last_update"`
 	TicketsCached int    `json:"tickets_cached" bson:"-"`
 }
+
+type EventInfo struct {
+	Tickets int64 `json:"tickets,omitempty" bson:"tickets"`
+}
+
 type TicketsLocked struct {
 	Tickets []TicketLocked
 }

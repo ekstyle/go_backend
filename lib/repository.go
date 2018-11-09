@@ -68,7 +68,6 @@ func genSecretKey() string {
 }
 
 func (r *Repository) Maintenance() {
-	log.Println("maintence")
 	r.MaintenceActiveEvents(60)
 }
 
@@ -298,7 +297,7 @@ func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	log.Println(len(eventExport.Content.Data.Event.Tickets))
 	log.Println("ticket synced")
 	_, err := bulk.Run()
-	log.Println("delete old")
+	//log.Println("delete old")
 	//remove old items
 	if err == nil {
 		session.DB(r.Database).C(TICKETS_COLLECTION).RemoveAll(bson.M{"event_id": eventExport.Content.Data.Event.EventID, "source": source, "last_update": bson.M{"$lt": timeUnix}})
@@ -437,6 +436,18 @@ func (r *Repository) GetEventById(id int64) Event {
 	db.C(EVENTS_COLLECTION).Find(bson.M{"event_id": id}).One(&event)
 	return event
 }
+func (r *Repository) GetEventInfo(id int64) EventInfo {
+	pipe := db.C(TICKETS_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id}}, {"$count": "tickets"}})
+	resp := EventInfo{}
+	err := pipe.One(&resp)
+	if err != nil {
+		log.Println("error!", err)
+	}
+
+	log.Println(resp, id)
+
+	return resp
+}
 func (r *Repository) GetEventsByGroup(groupId int64) Events {
 	group := Group{}
 	events := Events{}
@@ -446,7 +457,7 @@ func (r *Repository) GetEventsByGroup(groupId int64) Events {
 		db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": group.BuildingId}).All(&events.Events)
 	}
 	for i, event := range events.Events {
-		event.TicketsCached = r.GetTicketsCountByEvent(event)
+		//event.TicketsCached = r.GetTicketsCountByEvent(event)
 		events.Events[i] = event
 	}
 	log.Println(events)

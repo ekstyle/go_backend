@@ -92,10 +92,16 @@ var routes = Routes{
 		"/events/{id}", controller.EventsByGroupHandler,
 	},
 	Route{
+		"EventsInfo",
+		"GET",
+		"", "",
+		"/event/{id}/info", controller.EventInfo,
+	},
+	Route{
 		"EventSync",
 		"GET",
 		"", "",
-		"/events/{id}/sync", controller.EventSync,
+		"/event/{id}/sync", controller.EventSync,
 	},
 	Route{
 		"AddGroup",
