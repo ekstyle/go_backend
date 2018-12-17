@@ -100,7 +100,14 @@ type Event struct {
 }
 
 type EventInfo struct {
+	Tickets Tickets
+	Entries Entries
+}
+type Tickets struct {
 	Tickets int64 `json:"tickets,omitempty" bson:"tickets"`
+}
+type Entries struct {
+	Entries int64 `json:"entries,omitempty" bson:"entries"`
 }
 
 type TicketsLocked struct {

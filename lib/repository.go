@@ -437,15 +437,11 @@ func (r *Repository) GetEventById(id int64) Event {
 	return event
 }
 func (r *Repository) GetEventInfo(id int64) EventInfo {
-	pipe := db.C(TICKETS_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id}}, {"$count": "tickets"}})
+	pipeTickets := db.C(TICKETS_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id}}, {"$count": "tickets"}})
+	pipeEntry := db.C(ENTRY_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id, "direction": "entry", "result_code": 1}}, {"$group": bson.M{"_id": "$ticket_barcode"}}, {"$count": "entries"}})
 	resp := EventInfo{}
-	err := pipe.One(&resp)
-	if err != nil {
-		log.Println("error!", err)
-	}
-
-	log.Println(resp, id)
-
+	pipeTickets.One(&resp.Tickets)
+	pipeEntry.One(&resp.Entries)
 	return resp
 }
 func (r *Repository) GetEventsByGroup(groupId int64) Events {
