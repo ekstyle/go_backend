@@ -162,6 +162,15 @@ func (r *Groups) BildingsIds() []int64 {
 	}
 	return ids
 }
+func (r *Groups) ExcludeIds() []int64 {
+	ids := []int64{}
+	for _, v := range r.Groups {
+		for _, h := range v.Exclude_halls {
+			ids = append(ids, h)
+		}
+	}
+	return ids
+}
 
 type Events struct {
 	Events []Event `json:"events"`
@@ -204,11 +213,12 @@ type Log struct {
 }
 
 type Group struct {
-	Id              int64  `bson:"id" json:"id" schema:"id"`
-	Name            string `bson:"name" json:"name" schema:"name,required"`
-	BuildingId      int64  `bson:"building_id" json:"building_id" schema:"building_id"`
-	BuildingName    string `bson:"building_name" json:"building_name" schema:"building_name"`
-	BuildingAddress string `bson:"building_address" json:"building_address" schema:"building_address"`
+	Id              int64   `bson:"id" json:"id" schema:"id"`
+	Name            string  `bson:"name" json:"name" schema:"name,required"`
+	BuildingId      int64   `bson:"building_id" json:"building_id" schema:"building_id"`
+	BuildingName    string  `bson:"building_name" json:"building_name" schema:"building_name"`
+	BuildingAddress string  `bson:"building_address" json:"building_address" schema:"building_address"`
+	Exclude_halls   []int64 `json:"exclude_halls" bson:"exclude_halls"`
 }
 type Action struct {
 	Tms        int64  `json:"tms,omitempty"`

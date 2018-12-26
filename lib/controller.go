@@ -401,12 +401,9 @@ func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	if ex != nil {
 		respondWithJson(w, http.StatusBadRequest, ex)
 	}
-	log.Println("Start sync Event")
 	if group.BuildingId != 0 {
-		pageEvents := api.PageEventList(group.BuildingId, time.Now().Add(-time.Second*60*60*24).Unix(), time.Now().Add(time.Second*60*60*24*90).Unix())
-		repository.AddEvents(pageEvents.ToEvents())
+		repository.SyncEventsList(group.BuildingId)
 	}
-	log.Println("End sync Event")
 
 }
 func (c *Controller) RemoveGroupHandler(w http.ResponseWriter, r *http.Request) {

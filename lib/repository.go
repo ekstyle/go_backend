@@ -19,7 +19,7 @@ type Repository struct {
 }
 
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
-const OPENBEFORE = 60 * 45
+const OPENBEFORE = 60 * 45 * 4
 const OPENAFTER = 60 * 90
 const USER_COLLECTION = "users"
 const TERMINALS_COLLECTION = "terminals"
@@ -69,6 +69,7 @@ func genSecretKey() string {
 
 func (r *Repository) Maintenance() {
 	r.MaintenceActiveEvents(60)
+
 }
 
 func (r *Repository) GenDemoData(startNum int, endNum int, eventId int, source string) {
@@ -247,6 +248,10 @@ func (r *Repository) RemoveGroup(group Group) *Exception {
 
 	return nil
 }
+func (r *Repository) SyncEventsList(buildingId int64) {
+	pageEvents := api.PageEventList(buildingId, time.Now().Add(-time.Second*60*60*24).Unix(), time.Now().Add(time.Second*60*60*24*90).Unix())
+	r.AddEvents(pageEvents.ToEvents())
+}
 func (r *Repository) AddEvents(events Events) *Exception {
 
 	bulk := db.C(EVENTS_COLLECTION).Bulk()
@@ -419,7 +424,7 @@ func (r *Repository) GetGroupsByTerminal(terminal Terminal) Groups {
 func (r *Repository) GetActiveEventsByGroups(groups Groups) Events {
 	timeUnix := time.Now().Unix()
 	events := Events{}
-	db.C(EVENTS_COLLECTION).Find(bson.M{"event_dt": bson.M{"$lte": timeUnix + OPENBEFORE, "$gte": timeUnix - OPENAFTER}, "venue_id": bson.M{"$in": groups.BildingsIds()}}).All(&events.Events)
+	db.C(EVENTS_COLLECTION).Find(bson.M{"event_dt": bson.M{"$lte": timeUnix + OPENBEFORE, "$gte": timeUnix - OPENAFTER}, "venue_id": bson.M{"$in": groups.BildingsIds()}, "hall_id": bson.M{"$nin": groups.ExcludeIds()}}).All(&events.Events)
 	return events
 }
 func (r *Repository) MaintenceActiveEvents(deltaDt int64) Events {
@@ -448,10 +453,9 @@ func (r *Repository) GetEventsByGroup(groupId int64) Events {
 	group := Group{}
 	events := Events{}
 	db.C(GROUPS_COLLECTION).Find(bson.M{"id": groupId}).One(&group)
-	if group != (Group{}) {
-		log.Println(group)
-		db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": group.BuildingId}).All(&events.Events)
-	}
+	log.Println(group)
+	db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": group.BuildingId, "hall_id": bson.M{"$nin": group.Exclude_halls}}).All(&events.Events)
+	log.Println(events.Events)
 	for i, event := range events.Events {
 		//event.TicketsCached = r.GetTicketsCountByEvent(event)
 		events.Events[i] = event
