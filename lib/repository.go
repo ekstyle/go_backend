@@ -19,7 +19,7 @@ type Repository struct {
 }
 
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
-const OPENBEFORE = 60 * 45 * 4
+const OPENBEFORE = 60 * 45
 const OPENAFTER = 60 * 90
 const USER_COLLECTION = "users"
 const TERMINALS_COLLECTION = "terminals"
