@@ -218,7 +218,7 @@ type Group struct {
 	BuildingId      int64   `bson:"building_id" json:"building_id" schema:"building_id"`
 	BuildingName    string  `bson:"building_name" json:"building_name" schema:"building_name"`
 	BuildingAddress string  `bson:"building_address" json:"building_address" schema:"building_address"`
-	Exclude_halls   []int64 `json:"exclude_halls" bson:"exclude_halls"`
+	Exclude_halls   []int64 `json:"-" bson:"exclude_halls" schema:"-"`
 }
 type Action struct {
 	Tms        int64  `json:"tms,omitempty"`

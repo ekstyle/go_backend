@@ -394,6 +394,7 @@ func (c *Controller) SetGroupHandler(w http.ResponseWriter, r *http.Request) {
 	//Check login information
 	errDecode := decoder.Decode(&group, r.PostForm)
 	if errDecode != nil {
+		log.Println(errDecode)
 		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
 		return
 	}

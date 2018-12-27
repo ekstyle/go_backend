@@ -380,7 +380,6 @@ func (r *Repository) RegistrateTicket(barcode string, term Terminal, direction s
 	}
 	curentGroups := r.GetGroupsByTerminal(term)
 	currentEvents := r.GetActiveEventsByGroups(curentGroups)
-	log.Println(currentEvents.EventsIds())
 	ticket := Ticket{}
 	db.C(TICKETS_COLLECTION).Find(bson.M{"ticket_barcode": barcode, "event_id": bson.M{"$in": currentEvents.EventsIds()}}).One(&ticket)
 
@@ -453,14 +452,11 @@ func (r *Repository) GetEventsByGroup(groupId int64) Events {
 	group := Group{}
 	events := Events{}
 	db.C(GROUPS_COLLECTION).Find(bson.M{"id": groupId}).One(&group)
-	log.Println(group)
 	db.C(EVENTS_COLLECTION).Find(bson.M{"venue_id": group.BuildingId, "hall_id": bson.M{"$nin": group.Exclude_halls}}).All(&events.Events)
-	log.Println(events.Events)
 	for i, event := range events.Events {
 		//event.TicketsCached = r.GetTicketsCountByEvent(event)
 		events.Events[i] = event
 	}
-	log.Println(events)
 	return events
 }
 func (r *Repository) GetTicketsCountByEvent(event Event) int {
