@@ -1,7 +1,6 @@
 package lib
 
 import (
-	"log"
 	"time"
 )
 
@@ -119,7 +118,6 @@ type TicketLocked struct {
 }
 
 func (r *TicketsLocked) isLock(barode string) bool {
-	log.Println(r.Tickets)
 	for i := 0; i < len(r.Tickets); i++ {
 		//delete old
 		if r.Tickets[i].LockExpires <= time.Now().Unix() {

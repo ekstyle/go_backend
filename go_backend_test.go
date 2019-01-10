@@ -13,10 +13,12 @@ import (
 )
 
 const GATE = "1"
-const BARCODEFORTEST = "3620897234348"
+const BARCODEFORTEST = "3752777640512"
 const SECRETKEY = "5d9f2f8931434f346faf8a17be68f0d1"
-const MASTERKEY = "all open 001"
+const MASTERKEY = "VjKnRbkhDQJIisIq01"
 
+const MODULEVALIDATION = "validation"
+const MODULEREGISTRATION = "registration"
 const FAILSKDRESPONSE = -100
 const OK = 1
 const FAIL = -1
@@ -53,6 +55,7 @@ func TesterGET(urltest string) ([]byte, error) {
 		return buf, fmt.Errorf("Error GET %s: %s", url, resp.Status)
 	}
 	buf, _ = ioutil.ReadAll(resp.Body)
+	time.Sleep(time.Second / 2)
 	return buf, nil
 
 }
@@ -62,11 +65,12 @@ type SKDRequest struct {
 	direction string
 	barcode   string
 	secretKey string
+	module    string
 }
 
 func GetSKDResponseCodeValidateRegistrate(rep interface{}) (int64, error) {
 	req := rep.(SKDRequest)
-	urlentry := fmt.Sprintf("/validation/%s/%s/%s?sign=%s", req.gateid, req.direction, req.barcode, lib.GetMD5Hash(req.barcode+req.secretKey))
+	urlentry := fmt.Sprintf("/%s/%s/%s/%s?sign=%s", req.module, req.gateid, req.direction, req.barcode, lib.GetMD5Hash(req.barcode+req.secretKey))
 	resp, err := TesterGET(urlentry)
 	if err != nil {
 		return FAILSKDRESPONSE, err
@@ -87,7 +91,6 @@ func TestGetBuildings(t *testing.T) {
 	if err != nil {
 		t.Error("Error", err, resp)
 	}
-	t.Log("Building: ", string(resp))
 }
 
 type fibTestFunc func(interface{}) (int64, error)
@@ -98,17 +101,21 @@ func TestValidationRegistration(t *testing.T) {
 		fn       fibTestFunc
 		expected int64
 	}{
-		{SKDRequest{GATE, "entry", RandomStr(10), SECRETKEY}, GetSKDResponseCodeValidateRegistrate, NOTFOUND},             //#1)Not found
-		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, OK},                  //#2)Correct
-		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, FAIL},                //#3)Reentry
-		{SKDRequest{GATE, "exit", BARCODEFORTEST, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, FAIL},                 //#4)Exit for no entry
-		{SKDRequest{GATE, "entry", BARCODEFORTEST, RandomStr(32)}, GetSKDResponseCodeValidateRegistrate, FAILSKDRESPONSE}, //#5)Not correct sign
-		{SKDRequest{GATE, "entry", MASTERKEY, SECRETKEY}, GetSKDResponseCodeValidateRegistrate, OK},                       //#6)MasterKey
+		{SKDRequest{GATE, "entry", RandomStr(10), SECRETKEY, MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, NOTFOUND},             //#1)Not found
+		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY, MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, OK},                  //#2)Correct
+		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY, MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, FAIL},                //#3)Reentry
+		{SKDRequest{GATE, "exit", BARCODEFORTEST, SECRETKEY, MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, FAIL},                 //#4)Exit for no entry
+		{SKDRequest{GATE, "entry", BARCODEFORTEST, RandomStr(32), MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, FAILSKDRESPONSE}, //#5)Not correct sign
+		{SKDRequest{GATE, "entry", MASTERKEY, SECRETKEY, MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, OK},                       //#6)MasterKey
+		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY, MODULEREGISTRATION}, GetSKDResponseCodeValidateRegistrate, 0},                 //#7)Registrate entry
+		{SKDRequest{GATE, "entry", BARCODEFORTEST, SECRETKEY, MODULEVALIDATION}, GetSKDResponseCodeValidateRegistrate, FAIL},                //#8)Reentry
+		{SKDRequest{GATE, "exit", BARCODEFORTEST, SECRETKEY, MODULEREGISTRATION}, GetSKDResponseCodeValidateRegistrate, 0},                  //#9)Registrate exit
 	}
 	for idx, tt := range fibTests {
 		actual, _ := tt.fn(tt.testData)
 		if actual != tt.expected {
 			t.Errorf("(#%d) FibTest fail %s for(%s): expected %d, actual %d", idx+1, tt.testData.(SKDRequest).direction, tt.testData.(SKDRequest).barcode, tt.expected, actual)
+			return
 		}
 	}
 }

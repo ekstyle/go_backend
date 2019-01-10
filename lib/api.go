@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -299,7 +298,6 @@ func (api *Api) PageEventList(buildingId int64, dtFrom int64, dtTo int64) PageEv
 	}
 	var page PageEventList
 	json.Unmarshal(body_byte, &page)
-	log.Println(page)
 	return page
 }
 func (api *Api) GetBuildings() []Building {
@@ -319,6 +317,5 @@ func (api *Api) GetBuildings() []Building {
 	}
 	var tableBuildings TableBuildings
 	json.Unmarshal(body_byte, &tableBuildings)
-	log.Println(tableBuildings.Content)
 	return tableBuildings.Content
 }

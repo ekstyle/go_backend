@@ -274,9 +274,12 @@ func (c *Controller) ValidationRegistration(w http.ResponseWriter, r *http.Reque
 		respondWithJson(w, http.StatusBadRequest, err)
 	}
 	term := repository.GetTerminalById(int64(gateId))
+
 	if term.Secret != "" && CheckSign(term.Secret, ticket, sign) {
 		//Correct sign
+		log.Println("1")
 		resp, _ := repository.ValidateRegistrateTicket(ticket, term, direction)
+		log.Println("2")
 		repository.Log(Log{0, ticket, "Result for " + direction + " from gate #" + gate, resp.Result.Code})
 		respondWithJson(w, OK_CODE_RESPONSE, resp)
 		return

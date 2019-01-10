@@ -8,7 +8,6 @@ import (
 	"gopkg.in/mgo.v2/bson"
 	"log"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -21,6 +20,7 @@ type Repository struct {
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
 const OPENBEFORE = 60 * 45
 const OPENAFTER = 60 * 60 * 11
+const BLOCKAFETRENTRY = 60 * 3
 const USER_COLLECTION = "users"
 const TERMINALS_COLLECTION = "terminals"
 const GROUPS_COLLECTION = "groups"
@@ -33,6 +33,14 @@ const MASTERKEY_COLLECTION = "masterkey"
 var db *mgo.Database
 var ticketsLocked TicketsLocked
 var masterKeys MasterKeys
+
+func NullIsNow(t int64) int64 {
+	if t == 0 {
+		return time.Now().Unix()
+	} else {
+		return t
+	}
+}
 
 func (r *Repository) Connect() {
 	r.Server = os.Getenv("MONGO_URL")
@@ -284,7 +292,6 @@ func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	defer session.Close()
 
 	eventExport := api.GetEventACS(eventId)
-	log.Println(eventExport)
 	timeUnix := time.Now().Unix()
 	eventExport.Content.Data.Event.LastUpdate = timeUnix
 	//sync Event
@@ -298,9 +305,6 @@ func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 		element.Source = source
 		bulk.Upsert(bson.M{"ticket_id": element.TicketID, "event_id": element.EventID}, element)
 	}
-	log.Println("Event ID " + strconv.FormatInt(eventId, 10))
-	log.Println(len(eventExport.Content.Data.Event.Tickets))
-	log.Println("ticket synced")
 	_, err := bulk.Run()
 	//log.Println("delete old")
 	//remove old items
@@ -310,13 +314,11 @@ func (r *Repository) SyncEvent(eventId int64) (Event, *Exception) {
 	var event Event
 	session.DB(r.Database).C(EVENTS_COLLECTION).Find(bson.M{"event_id": eventId}).One(&event)
 	event.TicketsCached = r.GetTicketsCountByEvent(event)
-	log.Println("end")
 	return event, nil
 }
 func (r *Repository) ValidateTicket(barcode string, term Terminal) (SKDResponse, *Exception) {
 	curentGroups := r.GetGroupsByTerminal(term)
 	currentEvents := r.GetActiveEventsByGroups(curentGroups)
-	log.Println(currentEvents.EventsIds())
 	ticket := Ticket{}
 	db.C(TICKETS_COLLECTION).Find(bson.M{"ticket_barcode": barcode, "event_id": bson.M{"$in": currentEvents.EventsIds()}}).One(&ticket)
 
@@ -339,12 +341,16 @@ func (r *Repository) ValidateRegistrateTicket(barcode string, term Terminal, dir
 	ticket := Ticket{}
 	db.C(TICKETS_COLLECTION).Find(bson.M{"ticket_barcode": barcode, "event_id": bson.M{"$in": currentEvents.EventsIds()}}).One(&ticket)
 
-	if (Ticket{}) != ticket {
+	log.Println("TICKET is ", ticket)
 
+	if (Ticket{}) != ticket {
 		entryItem := r.CheckTicketForEntry(ticket)
 		entry, exit := getResultForEntry(entryItem)
-		if ticketsLocked.isLock(barcode) {
-			//Reenty for LockTicket
+		if ticketsLocked.isLock(barcode) || (NullIsNow(entryItem.OperationDt)+BLOCKAFETRENTRY < time.Now().Unix()) {
+			log.Println("!!!")
+			log.Println("lock", entryItem)
+			log.Println(time.Now().Unix() - BLOCKAFETRENTRY)
+			//Reenty for LockTicket OR Block entry after expiration
 			entryRecord := Entry{ticket.EventId, ticket.TicketBarcode, term.Id, time.Now().Unix(), ENTRY_RESULT_CODE_REENTRY, direction}
 			errInsert := db.C(ENTRY_COLLECTION).Insert(entryRecord)
 			if errInsert != nil {
@@ -362,14 +368,19 @@ func (r *Repository) ValidateRegistrateTicket(barcode string, term Terminal, dir
 			ticketsLocked.addLock(barcode)
 			return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_ACCEPT, entry, exit}, ticket, currentEvents.EventById(ticket.EventId), entryItem.toAction()}, nil
 		}
+
 		//reentry
 		entryRecord := Entry{ticket.EventId, ticket.TicketBarcode, term.Id, time.Now().Unix(), ENTRY_RESULT_CODE_REENTRY, direction}
 		errInsert := db.C(ENTRY_COLLECTION).Insert(entryRecord)
 		if errInsert != nil {
+			log.Println("error")
 			return SKDRegistrationResponse{}, &Exception{CANT_INSERT_EXEPTION, errInsert.Error()}
 		}
+
+		log.Println("reentry?")
 		return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_REENTRY, false, false}, ticket, currentEvents.EventById(ticket.EventId), entryItem.toAction()}, nil
 	}
+	log.Println("1.2")
 	//Not Found
 	ticket.TicketBarcode = barcode
 	return SKDRegistrationResponse{SKDRegistrationResult{ENTRY_RESULT_CODE_NOTFOUND, false, false}, ticket, Event{}, Action{}}, nil
