@@ -20,6 +20,15 @@ import (
 
 const MAINTANCERUN = 30
 
+func Bod(t time.Time) time.Time {
+	year, month, day := t.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, t.Location())
+}
+func Eod(t time.Time) time.Time {
+	year, month, day := t.Date()
+	return time.Date(year, month, day, 23, 59, 59, 0, t.Location())
+}
+
 func writeImagePng(w http.ResponseWriter, buffer []byte) {
 	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Content-Length", strconv.Itoa(len(buffer)))
@@ -149,6 +158,20 @@ func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &cookie)
 	json.NewEncoder(w).Encode(Response{OK_RESPONSE, OK_CODE_RESPONSE})
 	return
+}
+func (c *Controller) StatsHandler(w http.ResponseWriter, r *http.Request) {
+	eventInfo := repository.GetEventsByDt(Bod(time.Now()).Unix(), Eod(time.Now()).Unix())
+	var events []EventStats
+	var ii int64
+	ii = 1
+	for _, event := range eventInfo.Events {
+		info := repository.GetEventInfo(event.Id)
+		log.Println(info)
+		events = append(events, EventStats{ii, event.Id, event.EventDT, event.Title, info.Tickets.Tickets, info.Entries.Entries})
+		ii = ii + 1
+		log.Println(events)
+	}
+	respondWithJson(w, OK_CODE_RESPONSE, events)
 }
 func (c *Controller) Terminals(w http.ResponseWriter, r *http.Request) {
 	respondWithJson(w, http.StatusOK, repository.Terminals())

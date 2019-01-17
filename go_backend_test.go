@@ -13,7 +13,7 @@ import (
 )
 
 const GATE = "1"
-const BARCODEFORTEST = "3752777640512"
+const BARCODEFORTEST = "3749797650507"
 const SECRETKEY = "5d9f2f8931434f346faf8a17be68f0d1"
 const MASTERKEY = "VjKnRbkhDQJIisIq01"
 

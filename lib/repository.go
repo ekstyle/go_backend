@@ -20,7 +20,7 @@ type Repository struct {
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
 const OPENBEFORE = 60 * 45
 const OPENAFTER = 60 * 60 * 11
-const BLOCKAFETRENTRY = 60 * 3
+const BLOCKAFETRENTRY = 60 * 60 * 3
 const USER_COLLECTION = "users"
 const TERMINALS_COLLECTION = "terminals"
 const GROUPS_COLLECTION = "groups"
@@ -346,7 +346,7 @@ func (r *Repository) ValidateRegistrateTicket(barcode string, term Terminal, dir
 	if (Ticket{}) != ticket {
 		entryItem := r.CheckTicketForEntry(ticket)
 		entry, exit := getResultForEntry(entryItem)
-		if ticketsLocked.isLock(barcode) || (NullIsNow(entryItem.OperationDt)+BLOCKAFETRENTRY < time.Now().Unix()) {
+		if ticketsLocked.isLock(barcode) || (r.TicketEntryFirstTime(ticket)+BLOCKAFETRENTRY < time.Now().Unix()) {
 			log.Println("!!!")
 			log.Println("lock", entryItem)
 			log.Println(time.Now().Unix() - BLOCKAFETRENTRY)
@@ -470,6 +470,11 @@ func (r *Repository) GetEventsByGroup(groupId int64) Events {
 	}
 	return events
 }
+func (r *Repository) GetEventsByDt(dtf, dtt int64) Events {
+	events := Events{}
+	db.C(EVENTS_COLLECTION).Find(bson.M{"event_dt": bson.M{"$lte": dtt, "$gte": dtf}}).All(&events.Events)
+	return events
+}
 func (r *Repository) GetTicketsCountByEvent(event Event) int {
 
 	ticketsCount, _ := db.C(TICKETS_COLLECTION).Find(bson.M{"event_id": event.Id}).Count()
@@ -489,6 +494,11 @@ func (r *Repository) CheckTicketForEntry(ticket Ticket) Entry {
 	entry := Entry{}
 	db.C(ENTRY_COLLECTION).Find(bson.M{"ticket_barcode": ticket.TicketBarcode, "event_id": ticket.EventId, "result_code": ENTRY_RESULT_CODE_ACCEPT}).Sort("-operation_dt").One(&entry)
 	return entry
+}
+func (r *Repository) TicketEntryFirstTime(ticket Ticket) int64 {
+	entry := Entry{}
+	db.C(ENTRY_COLLECTION).Find(bson.M{"ticket_barcode": ticket.TicketBarcode, "event_id": ticket.EventId, "result_code": ENTRY_RESULT_CODE_ACCEPT}).Sort("operation_dt").One(&entry)
+	return NullIsNow(entry.OperationDt)
 }
 func (r *Repository) CheckTicket(check CheckTiket) CheckResult {
 	ticket := Ticket{}

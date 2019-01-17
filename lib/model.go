@@ -97,16 +97,24 @@ type Event struct {
 	LastUpdate    int64  `json:"last_update" bson:"last_update"`
 	TicketsCached int    `json:"tickets_cached" bson:"-"`
 }
+type EventStats struct {
+	Id      int64  `json:"id,omitempty"`
+	EventId int64  `json:"event_id,omitempty"`
+	Dt      int64  `json:"dt,omitempty"`
+	Title   string `json:"title,omitempty"`
+	Sell    int64  `json:"sell,omitempty"`
+	Entry   int64  `json:"entry,omitempty"`
+}
 
 type EventInfo struct {
 	Tickets Tickets
 	Entries Entries
 }
 type Tickets struct {
-	Tickets int64 `json:"tickets,omitempty" bson:"tickets"`
+	Tickets int64 `json:"tickets" bson:"tickets"`
 }
 type Entries struct {
-	Entries int64 `json:"entries,omitempty" bson:"entries"`
+	Entries int64 `json:"entries" bson:"entries"`
 }
 
 type TicketsLocked struct {

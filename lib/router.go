@@ -38,28 +38,34 @@ var routes = Routes{
 		"/logout", AuthenticationMiddleware(controller.LogoutHandler),
 	},
 	Route{
+		"Logout",
+		"GET",
+		"", "",
+		"/stats", AuthenticationMiddleware(controller.StatsHandler),
+	},
+	Route{
 		"AddUser",
 		"POST",
 		"", "",
-		"/add_user", controller.AddUserHandler,
+		"/add_user", AuthenticationMiddleware(controller.AddUserHandler),
 	},
 	Route{
 		"Terminals",
 		"GET",
 		"", "",
-		"/terminals", controller.Terminals,
+		"/terminals", AuthenticationMiddleware(controller.Terminals),
 	},
 	Route{
 		"Terminals",
 		"POST",
 		"", "",
-		"/add_terminal", controller.AddTerminalHandler,
+		"/add_terminal", AuthenticationMiddleware(controller.AddTerminalHandler),
 	},
 	Route{
 		"CheckTicket",
 		"POST",
 		"", "",
-		"/check_ticket", controller.CheckTicketHandler,
+		"/check_ticket", AuthenticationMiddleware(controller.CheckTicketHandler),
 	},
 	Route{
 		"TerminalSet",
@@ -89,7 +95,7 @@ var routes = Routes{
 		"EventsByGroup",
 		"GET",
 		"", "",
-		"/events/{id}", controller.EventsByGroupHandler,
+		"/events/{id}", AuthenticationMiddleware(controller.EventsByGroupHandler),
 	},
 	Route{
 		"EventsInfo",
