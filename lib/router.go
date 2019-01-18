@@ -41,7 +41,7 @@ var routes = Routes{
 		"Logout",
 		"GET",
 		"", "",
-		"/stats", AuthenticationMiddleware(controller.StatsHandler),
+		"/stats", controller.StatsHandler,
 	},
 	Route{
 		"AddUser",
