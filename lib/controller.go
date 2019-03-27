@@ -166,10 +166,8 @@ func (c *Controller) StatsHandler(w http.ResponseWriter, r *http.Request) {
 	ii = 1
 	for _, event := range eventInfo.Events {
 		info := repository.GetEventInfo(event.Id)
-		log.Println(info)
-		events = append(events, EventStats{ii, event.Id, event.EventDT, event.Title, info.Tickets.Tickets, info.Entries.Entries})
+		events = append(events, EventStats{ii, event.Id, event.EventDT, event.Title, info.Tickets(), info.Entrys(), info.Info})
 		ii = ii + 1
-		log.Println(events)
 	}
 	respondWithJson(w, OK_CODE_RESPONSE, events)
 }

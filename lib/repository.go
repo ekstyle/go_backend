@@ -452,12 +452,27 @@ func (r *Repository) GetEventById(id int64) Event {
 	return event
 }
 func (r *Repository) GetEventInfo(id int64) EventInfo {
-	pipeTickets := db.C(TICKETS_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id}}, {"$count": "tickets"}})
-	pipeEntry := db.C(ENTRY_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id, "direction": "entry", "result_code": 1}}, {"$group": bson.M{"_id": "$ticket_barcode"}}, {"$count": "entries"}})
-	resp := EventInfo{}
-	pipeTickets.One(&resp.Tickets)
-	pipeEntry.One(&resp.Entries)
-	return resp
+	var tickets, entrys []bson.M
+	eventInfo := EventInfo{}
+	pipeTickets := db.C(TICKETS_COLLECTION).Pipe([]bson.M{
+		bson.M{"$match": bson.M{"event_id": id}},
+		bson.M{"$group": bson.M{"_id": "$ticket_price", "count": bson.M{"$sum": 1}}}})
+	pipeEntry := db.C(ENTRY_COLLECTION).Pipe([]bson.M{
+		bson.M{"$match": bson.M{"event_id": id, "result_code": 1, "direction": "entry"}},
+		bson.M{"$group": bson.M{"_id": "$ticket_barcode"}},
+		bson.M{"$lookup": bson.M{"from": "tickets", "localField": "_id", "foreignField": "ticket_barcode", "as": "ticket"}},
+		bson.M{"$unwind": "$ticket"},
+		bson.M{"$group": bson.M{"_id": "$ticket.ticket_price", "count": bson.M{"$sum": 1}}}})
+
+	pipeTickets.All(&tickets)
+	pipeEntry.All(&entrys)
+
+	eventInfo.fromPriceMap(tickets, entrys)
+	//pipeEntry := db.C(ENTRY_COLLECTION).Pipe([]bson.M{{"$match": bson.M{"event_id": id, "direction": "entry", "result_code": 1}}, {"$group": bson.M{"_id": "$ticket_barcode"}}, {"$count": "entries"}})
+	//resp := EventInfo{}
+	//pipeTickets.One(&resp.Tickets)
+	//pipeEntry.One(&resp.Entries)
+	return eventInfo
 }
 func (r *Repository) GetEventsByGroup(groupId int64) Events {
 	group := Group{}

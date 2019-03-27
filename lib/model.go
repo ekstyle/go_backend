@@ -1,6 +1,8 @@
 package lib
 
 import (
+	"fmt"
+	"gopkg.in/mgo.v2/bson"
 	"time"
 )
 
@@ -98,18 +100,58 @@ type Event struct {
 	TicketsCached int    `json:"tickets_cached" bson:"-"`
 }
 type EventStats struct {
-	Id      int64  `json:"id,omitempty"`
-	EventId int64  `json:"event_id,omitempty"`
-	Dt      int64  `json:"dt,omitempty"`
-	Title   string `json:"title,omitempty"`
-	Sell    int64  `json:"sell,omitempty"`
-	Entry   int64  `json:"entry,omitempty"`
+	Id      int64       `json:"id,omitempty"`
+	EventId int64       `json:"event_id,omitempty"`
+	Dt      int64       `json:"dt,omitempty"`
+	Title   string      `json:"title,omitempty"`
+	Sell    int64       `json:"sell,omitempty"`
+	Entry   int64       `json:"entry,omitempty"`
+	Info    []PriceLine `json:"info"`
+}
+type PriceLine struct {
+	Price string `json:"id"`
+	Sell  int64  `json:"sell"`
+	Entry int64  `json:"entry"`
 }
 
 type EventInfo struct {
-	Tickets Tickets
-	Entries Entries
+	Info []PriceLine
 }
+
+func (r *EventInfo) addPriceLine(price PriceLine) {
+	r.Info = append(r.Info, price)
+}
+func (r *EventInfo) fromPriceMap(tickets []bson.M, entrys []bson.M) {
+	for _, ticket := range tickets {
+		var priceLine PriceLine
+		priceLine.Price = fmt.Sprintf("%v", ticket["_id"])
+		priceLine.Sell = int64(ticket["count"].(int))
+		priceLine.Entry = 0
+		for _, entry := range entrys {
+			if entry["_id"] == ticket["_id"] {
+				priceLine.Entry = int64(entry["count"].(int))
+			}
+		}
+		r.addPriceLine(priceLine)
+	}
+}
+func (r *EventInfo) Tickets() int64 {
+	var c int64
+	c = 0
+	for _, line := range r.Info {
+		c += line.Sell
+	}
+	return c
+}
+func (r *EventInfo) Entrys() int64 {
+	var c int64
+	c = 0
+	for _, line := range r.Info {
+		c += line.Entry
+	}
+	return c
+}
+
 type Tickets struct {
 	Tickets int64 `json:"tickets" bson:"tickets"`
 }
