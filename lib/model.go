@@ -135,7 +135,6 @@ func (r *EventInfo) fromPriceMap(tickets []bson.M, entrys []bson.M) {
 		for _, entry := range entrys {
 			if entry["_id"] == ticket["_id"] {
 				priceLine.Entry = int64(entry["count"].(int))
-				fmt.Println(entry)
 			}
 		}
 		r.addPriceLine(priceLine)
