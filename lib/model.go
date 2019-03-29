@@ -3,6 +3,7 @@ package lib
 import (
 	"fmt"
 	"gopkg.in/mgo.v2/bson"
+	"strconv"
 	"time"
 )
 
@@ -106,11 +107,13 @@ type EventStats struct {
 	Title   string      `json:"title,omitempty"`
 	Sell    int64       `json:"sell,omitempty"`
 	Entry   int64       `json:"entry,omitempty"`
+	Total   int64       `json:"total,omitempty"`
 	Info    []PriceLine `json:"info"`
 }
 type PriceLine struct {
 	Price string `json:"id"`
 	Sell  int64  `json:"sell"`
+	Total int64  `json:"total"`
 	Entry int64  `json:"entry"`
 }
 
@@ -126,10 +129,13 @@ func (r *EventInfo) fromPriceMap(tickets []bson.M, entrys []bson.M) {
 		var priceLine PriceLine
 		priceLine.Price = fmt.Sprintf("%v", ticket["_id"])
 		priceLine.Sell = int64(ticket["count"].(int))
+		price, _ := strconv.ParseFloat(priceLine.Price, 64)
+		priceLine.Total = int64(price) * priceLine.Sell
 		priceLine.Entry = 0
 		for _, entry := range entrys {
 			if entry["_id"] == ticket["_id"] {
 				priceLine.Entry = int64(entry["count"].(int))
+				fmt.Println(entry)
 			}
 		}
 		r.addPriceLine(priceLine)
@@ -148,6 +154,14 @@ func (r *EventInfo) Entrys() int64 {
 	c = 0
 	for _, line := range r.Info {
 		c += line.Entry
+	}
+	return c
+}
+func (r *EventInfo) Total() int64 {
+	var c int64
+	c = 0
+	for _, line := range r.Info {
+		c += line.Total
 	}
 	return c
 }
