@@ -38,8 +38,8 @@ var routes = Routes{
 		"/logout", AuthenticationMiddleware(controller.LogoutHandler),
 	},
 	Route{
-		"Logout",
-		"GET",
+		"Stats",
+		"POST",
 		"", "",
 		"/stats", controller.StatsHandler,
 	},

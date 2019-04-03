@@ -54,6 +54,10 @@ type UserLogin struct {
 	Login    string `schema:"login,required"`
 	Password string `schema:"password,required"`
 }
+type TimeRange struct {
+	From string `schema:"from,required"`
+	To   string `schema:"to,required"`
+}
 type CheckTiket struct {
 	Barcode string `json:"barcode" bson:"barcode"`
 }

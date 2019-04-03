@@ -160,7 +160,21 @@ func (c *Controller) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 func (c *Controller) StatsHandler(w http.ResponseWriter, r *http.Request) {
-	eventInfo := repository.GetEventsByDt(Bod(time.Now()).Unix(), Eod(time.Now()).Unix())
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var timeRange TimeRange
+	errDecode := decoder.Decode(&timeRange, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	from, _ := time.Parse("2006-01-02", timeRange.From)
+	to, _ := time.Parse("2006-01-02", timeRange.To)
+
+	eventInfo := repository.GetEventsByDt(Bod(from).Unix(), Eod(to).Unix())
 	var events []EventStats
 	var ii int64
 	ii = 1
