@@ -7,6 +7,7 @@ type Exception struct {
 
 const CANT_INSERT_EXEPTION = "Can`t insert in database"
 const CANT_SELECT_EXEPTION = "Can`t select from database"
+const XML_PARSE_EXEPTION = "Can`t parse xml, check format"
 const USER_EXIST_EXEPTION = "Can`t add, user already exists"
 const MASTERKEY_EXIST_EXEPTION = "Can`t add, master key already exists"
 const TERMINAL_EXIST_EXEPTION = "Can`t add, terminal already exists"

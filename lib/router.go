@@ -77,7 +77,7 @@ var routes = Routes{
 		"TerminalsAuth",
 		"GET",
 		"", "",
-		"/terminal/{id}/auth.png", controller.TerimalAuthPng,
+		"/terminal/{id}/auth.png", AuthenticationMiddleware(controller.TerimalAuthPng),
 	},
 	Route{
 		"INIT",
@@ -165,6 +165,13 @@ var routes = Routes{
 		"sign", "{sign}",
 		"/registration/{gate}/{direction:entry|exit}/{ticket}",
 		controller.Registration,
+	},
+	Route{
+		"Request",
+		"POST",
+		"", "",
+		"/request",
+		controller.Request,
 	},
 }
 

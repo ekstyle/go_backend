@@ -45,14 +45,40 @@ type AuthStruct struct {
 	Auth struct {
 		URL       string `json:"url" bson:"-"`
 		ID        int64  `json:"id" bson:"id"`
-		Title     string `json:"title" bson:"name"`
+		Title     string `json:"-" bson:"name"`
 		SecretKey string `json:"secret_key" bson:"secret_key"`
 	} `json:"auth"`
+	Terminal struct {
+		ID    int64  `json:"id" bson:"-"`
+		Title string `json:"title" bson:"name"`
+	} `json:"terminal"`
 	Sign string `json:"sign"`
+}
+type RequestXML struct {
+	Module string `xml:"module,attr"`
+	Format string `xml:"format,attr"`
+	Action struct {
+		ID        string `xml:"id,attr"`
+		Direction string `xml:"direction,attr"`
+		Type      string `xml:"type,attr"`
+	} `xml:"action"`
+	Ticket struct {
+		Code string `xml:"code,attr"`
+	} `xml:"ticket"`
+	Terminal struct {
+		ID string `xml:"id,attr"`
+	} `xml:"terminal"`
+	Auth struct {
+		ID string `xml:"id,attr"`
+	} `xml:"auth"`
 }
 type UserLogin struct {
 	Login    string `schema:"login,required"`
 	Password string `schema:"password,required"`
+}
+type Request struct {
+	Xml  string `schema:"xml,required"`
+	Sign string `schema:"sign,required"`
 }
 type TimeRange struct {
 	From string `schema:"from,required"`
@@ -296,6 +322,42 @@ type SKDResponse struct {
 	Ticket     Ticket    `json:"ticket,omitempty"`
 	Event      Event     `json:"event,omitempty"`
 	LastAction Action    `json:"last_action,omitempty"`
+}
+type TicketOLD struct {
+	Title         string `json:"title"`
+	TicketBarcode string `json:"barcode"`
+	TicketSector  string `json:"sector"`
+	TicketPrice   string `json:"price"`
+}
+type EventOLD struct {
+	Title   string `json:"title"`
+	EventDT string `json:"dt"`
+}
+type ActionOLD struct {
+	Tms string `json:"tms"`
+}
+type SKDOLDResponse struct {
+	Result SKDResultOLD `json:"result"`
+	Data   SKDOLDData   `json:"data"`
+}
+type SKDResultOLD struct {
+	Code       int64     `json:"code"`
+	LastAction ActionOLD `json:"last_action"`
+}
+
+func (r *SKDOLDResponse) fromResponse(resp SKDResponse) {
+	r.Data.Ticket.Title = resp.Ticket.TicketTitle
+	r.Data.Ticket.TicketSector = resp.Ticket.TicketSector
+	r.Data.Ticket.TicketPrice = resp.Ticket.TicketPrice
+	r.Data.Event.Title = resp.Event.Title
+	r.Data.Event.EventDT = strconv.FormatInt(resp.Event.EventDT, 10)
+	r.Result.LastAction.Tms = strconv.FormatInt(resp.LastAction.Tms, 10)
+	r.Result.Code = resp.Result.Code
+}
+
+type SKDOLDData struct {
+	Ticket TicketOLD `json:"ticket"`
+	Event  EventOLD  `json:"event"`
 }
 type SKDRegistrationResponse struct {
 	Result     SKDRegistrationResult `json:"result"`

@@ -397,6 +397,7 @@ func (r *Repository) RegistrateTicket(barcode string, term Terminal, direction s
 	if (Ticket{}) != ticket {
 		entryItem := r.CheckTicketForEntry(ticket)
 		entry, exit := getResultForEntry(entryItem)
+		fmt.Println(entry, exit)
 		if entry && direction == "entry" {
 			//Entry allowed
 			entryRecord := Entry{ticket.EventId, ticket.TicketBarcode, term.Id, time.Now().Unix(), ENTRY_RESULT_CODE_ACCEPT, direction}
@@ -503,6 +504,9 @@ func (r *Repository) GetTerminalById(terminalId int64) Terminal {
 func (r *Repository) GetAuthTerminalById(terminalId int64) AuthStruct {
 	term := AuthStruct{}
 	db.C(TERMINALS_COLLECTION).Find(bson.M{"id": terminalId}).One(&term.Auth)
+	//fix for back compatibility
+	term.Terminal.Title = term.Auth.Title
+	term.Terminal.ID = term.Auth.ID
 	return term
 }
 func (r *Repository) CheckTicketForEntry(ticket Ticket) Entry {

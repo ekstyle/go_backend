@@ -2,6 +2,7 @@ package lib
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-playground/form"
@@ -210,6 +211,48 @@ func (c *Controller) InitInstance(w http.ResponseWriter, r *http.Request) {
 	repository.AddUser(user)
 	respondWithJson(w, http.StatusOK, nil)
 }
+func (c *Controller) Request(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseForm()
+	if err != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{PARSE_PARAMS_EXEPTION, err.Error()})
+		return
+	}
+	var reqest Request
+	//Check login information
+	errDecode := decoder.Decode(&reqest, r.PostForm)
+	if errDecode != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{NOT_ENOUGH_PARAMS, errDecode.Error()})
+		return
+	}
+	var requestXml RequestXML
+	errXml := xml.Unmarshal([]byte(reqest.Xml), &requestXml)
+	if errXml != nil {
+		respondWithJson(w, http.StatusBadRequest, Exception{XML_PARSE_EXEPTION, errDecode.Error()})
+		return
+	}
+	termId, _ := strconv.ParseInt(requestXml.Terminal.ID, 10, 64)
+
+	term := repository.GetTerminalById(termId)
+	if term.Secret != "" && CheckSign(term.Secret, reqest.Xml, reqest.Sign) {
+		//Correct sign
+		resp, _ := repository.ValidateTicket(requestXml.Ticket.Code, term)
+		rez, _ := repository.ValidateRegistrateTicket(requestXml.Ticket.Code, term, "entry")
+		resp.Result.Code = rez.Result.Code
+		oldresp := SKDOLDResponse{}
+		oldresp.fromResponse(resp)
+		repository.Log(Log{0, requestXml.Ticket.Code, "Result for entry from gate #" + requestXml.Terminal.ID + ". MANUAL SCAN! ", resp.Result.Code})
+		if resp.Result.Code == 1 {
+			repository.RegistrateTicket(requestXml.Ticket.Code, term, "entry")
+		}
+		respondWithJson(w, OK_CODE_RESPONSE, oldresp)
+		return
+	}
+	// Bad sign or gateId
+	log.Println("Bad sign")
+	respondWithJson(w, http.StatusBadRequest, Exception{UNAUTHORIZED, errDecode.Error()})
+	return
+
+}
 func (c *Controller) TerminalSet(w http.ResponseWriter, r *http.Request) {
 	decoder := form.NewDecoder()
 	r.ParseForm()
@@ -231,7 +274,7 @@ func (c *Controller) TerimalAuthPng(w http.ResponseWriter, r *http.Request) {
 	}
 	terminalAuth := repository.GetAuthTerminalById(int64(id))
 	//TODO FIX THAT! ERROR!!!!!
-	terminalAuth.Auth.URL = getHostnameFromUrl(r.Referer())
+	terminalAuth.Auth.URL = getHostnameFromUrl(r.Referer()) + "/request"
 	jsonAuth, errjson := json.Marshal(terminalAuth)
 	if err != nil {
 		fmt.Printf("Error: %s", errjson)
