@@ -77,6 +77,7 @@ func genSecretKey() string {
 
 func (r *Repository) Maintenance() {
 	r.MaintenceActiveEvents(60)
+	r.SyncAllGroupsEvents()
 
 }
 
@@ -256,6 +257,16 @@ func (r *Repository) RemoveGroup(group Group) *Exception {
 
 	return nil
 }
+
+func (r *Repository) SyncAllGroupsEvents() *Exception {
+	groups := Groups{}
+	db.C(GROUPS_COLLECTION).Find(nil).All(&groups.Groups)
+	for _, element := range groups.Groups {
+		r.SyncEventsList(element.BuildingId)
+	}
+	return nil
+}
+
 func (r *Repository) SyncEventsList(buildingId int64) {
 	pageEvents := api.PageEventList(buildingId, time.Now().Add(-time.Second*60*60*24).Unix(), time.Now().Add(time.Second*60*60*24*90).Unix())
 	r.AddEvents(pageEvents.ToEvents())
