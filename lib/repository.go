@@ -19,7 +19,7 @@ type Repository struct {
 
 const SALT = "1c2cf9a0a9031262b894fac41f05e656"
 const OPENBEFORE = 60 * 45
-const OPENAFTER = 60 * 60 * 11
+const OPENAFTER = 60 * 60 * 15
 const BLOCKAFETRENTRY = 60 * 60 * 2
 const USER_COLLECTION = "users"
 const TERMINALS_COLLECTION = "terminals"
@@ -532,7 +532,18 @@ func (r *Repository) TicketEntryFirstTime(ticket Ticket) int64 {
 }
 func (r *Repository) CheckTicket(check CheckTiket) CheckResult {
 	ticket := Ticket{}
+	var entry []bson.M
 	db.C(TICKETS_COLLECTION).Find(bson.M{"ticket_barcode": check.Barcode}).One(&ticket)
+	pipeEntry := db.C(ENTRY_COLLECTION).Pipe([]bson.M{
+		bson.M{"$match": bson.M{"ticket_barcode": check.Barcode}},
+		bson.M{"$lookup": bson.M{"from": "terminals", "localField": "terminal_id", "foreignField": "id", "as": "term"}},
+		bson.M{"$unwind": "$term"}})
+	pipeEntry.All(&entry)
+
+	//db.C(ENTRY_COLLECTION).Find(bson.M{"ticket_barcode": check.Barcode}).Sort("operation_dt").All(&entry)
+
+	fmt.Println(entry)
 	event := r.GetEventById(ticket.EventId)
-	return CheckResult{event, ticket}
+	ticket.TicketBarcode = check.Barcode
+	return CheckResult{event, ticket, entry}
 }

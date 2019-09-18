@@ -88,8 +88,9 @@ type CheckTiket struct {
 	Barcode string `json:"barcode" bson:"barcode"`
 }
 type CheckResult struct {
-	Event  Event  `json:"event"`
-	Ticket Ticket `json:"ticket"`
+	Event  Event    `json:"event"`
+	Ticket Ticket   `json:"ticket"`
+	Entry  []bson.M `json:"entry"`
 }
 type Sign struct {
 	Sign string `schema:"sign,required"`

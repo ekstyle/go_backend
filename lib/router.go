@@ -65,7 +65,7 @@ var routes = Routes{
 		"CheckTicket",
 		"POST",
 		"", "",
-		"/check_ticket", AuthenticationMiddleware(controller.CheckTicketHandler),
+		"/check_ticket", controller.CheckTicketHandler,
 	},
 	Route{
 		"TerminalSet",
